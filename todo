@@ -1,0 +1,6 @@
+[ ] Serialize with serde to special project file / folder
+[ ] Serialize and deserialize from json datapack format
+    [ ] try on minecraft data
+[ ] Visualisation
+    [ ] ...
+[ ] Add every node type
