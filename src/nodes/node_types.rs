@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use egui_node_graph::{NodeTemplateTrait, NodeId, InputParamKind, NodeTemplateIter};
+use egui_node_graph::{NodeTemplateTrait, NodeId, InputParamKind, NodeTemplateIter, DataTypeTrait};
 
 use crate::file::WindowType;
 
-use super::{NodeData, data_types::{DataType, ValueType}, GraphState, GraphType, density_function::DensityFunctionType};
+use super::{NodeData, data_types::{DataType, ValueType, ComplexDataType}, GraphState, GraphType, density_function::DensityFunctionType, surface_rule::{SurfaceRuleType, SurfaceRuleConditionType}};
 
 
 #[derive(Copy, Clone)]
@@ -15,7 +15,10 @@ pub enum NodeTemplate {
     ConstantBlock,
     Noise,
     Reference(WindowType),
-    Output(WindowType)
+    Output(WindowType),
+    SurfaceRule(SurfaceRuleType),
+    SurfaceRuleCondition(SurfaceRuleConditionType),
+    List(ComplexDataType)
 }
 
 impl NodeTemplateTrait for NodeTemplate {
@@ -33,6 +36,9 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::Noise => Cow::Borrowed("Noise"),
             NodeTemplate::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             NodeTemplate::Output(x) => Cow::Owned(format!("Output ({})", x.as_ref())),
+            NodeTemplate::List(x) => Cow::Owned(format!("List ({})", DataType::Single(*x).name())),
+            NodeTemplate::SurfaceRule(x) => Cow::Owned(x.to_string()),
+            NodeTemplate::SurfaceRuleCondition(x) => Cow::Owned(x.to_string()),
         }
     }
 
@@ -84,20 +90,20 @@ impl NodeTemplateTrait for NodeTemplate {
             graph.add_input_param(
                 node_id, 
                 name.to_string(), 
-                DataType::DensityFunction,
+                DataType::Single(ComplexDataType::DensityFunction),
                 ValueType::DensityFunction,
                 InputParamKind::ConnectionOnly, 
                 true
             );
         };
         let output_df = |graph: &mut GraphType, name: &str| {
-            graph.add_output_param(node_id, name.to_string(), DataType::DensityFunction);
+            graph.add_output_param(node_id, name.to_string(), DataType::Single(ComplexDataType::DensityFunction));
         };
         let input_noise = |graph: &mut GraphType, name: &str| {
-            graph.add_input_param(node_id, name.to_string(), DataType::Noise, ValueType::Noise, InputParamKind::ConnectionOnly, true);
+            graph.add_input_param(node_id, name.to_string(), DataType::Single(ComplexDataType::Noise), ValueType::Noise, InputParamKind::ConnectionOnly, true);
         };
         let output_noise = |graph: &mut GraphType, name: &str| {
-            graph.add_output_param(node_id, name.to_string(), DataType::Noise);
+            graph.add_output_param(node_id, name.to_string(), DataType::Single(ComplexDataType::Noise));
         };
         let input_values_arr = |graph: &mut GraphType, name: &str| {
             graph.add_input_param(
@@ -110,8 +116,9 @@ impl NodeTemplateTrait for NodeTemplate {
             );
         };
         let input_reference = |graph: &mut GraphType, name: &str, kind: InputParamKind, window_type: &WindowType| {
-            graph.add_input_param(node_id, name.to_string(), DataType::Reference(*window_type), ValueType::Reference(*window_type, String::new()), kind, true);
+            graph.add_input_param(node_id, name.to_string(), DataType::Single(ComplexDataType::Reference(*window_type)), ValueType::Reference(*window_type, String::new()), kind, true);
         };
+        //TODO: Make sure label wording matches JSON
         match self {
             NodeTemplate::ConstantValue => {
                 input_value(graph, "value", InputParamKind::ConstantOnly);
@@ -163,10 +170,105 @@ impl NodeTemplateTrait for NodeTemplate {
                     input_df(graph, "output");
                 },
                 WindowType::Noise => {
-                    input_value(graph, "First octave", InputParamKind::ConstantOnly);
-                    input_values_arr(graph, "Amplitudes");
+                    input_value(graph, "first_octave", InputParamKind::ConstantOnly);
+                    input_values_arr(graph, "amplitudes");
                 },
             },
+            NodeTemplate::SurfaceRule(x) => {
+                graph.add_output_param(node_id, "out".to_string(), DataType::Single(ComplexDataType::SurfaceRule));
+                match x {
+                    SurfaceRuleType::Bandlands => {},
+                    SurfaceRuleType::Block => {
+                        graph.add_input_param(
+                            node_id, 
+                            "result_state".to_string(), 
+                            DataType::Block, 
+                            ValueType::Block(0), 
+                            InputParamKind::ConnectionOrConstant, 
+                            true
+                        );
+                    },
+                    SurfaceRuleType::Sequence => {
+                        graph.add_input_param(
+                            node_id, 
+                            "".to_string(), 
+                            DataType::List(ComplexDataType::SurfaceRule), 
+                            ValueType::List(1), 
+                            InputParamKind::ConstantOnly, 
+                            true
+                        );
+                        graph.add_input_param(
+                            node_id, 
+                            "".to_string(), 
+                            DataType::Single(ComplexDataType::SurfaceRule), 
+                            ValueType::SurfaceRule, 
+                            InputParamKind::ConnectionOrConstant, 
+                            true
+                        );
+                    },
+                    SurfaceRuleType::Condition => {
+                        graph.add_input_param(
+                            node_id, 
+                            "if true".to_string(), 
+                            DataType::Single(ComplexDataType::SurfaceRuleCondition), 
+                            ValueType::SurfaceRuleCondition, 
+                            InputParamKind::ConnectionOnly, 
+                            true
+                        );
+                        graph.add_input_param(
+                            node_id, 
+                            "then run".to_string(), 
+                            DataType::Single(ComplexDataType::SurfaceRule), 
+                            ValueType::SurfaceRule, 
+                            InputParamKind::ConnectionOnly, 
+                            true
+                        );
+                    },
+                };
+            },
+            //TODO: Is this necessary? Along with datatype::List(x) having colors and names
+            NodeTemplate::List(x) => {
+                graph.add_output_param(node_id, "out".to_string(), DataType::List(*x));
+                let value_type = match x {
+                    ComplexDataType::Noise => ValueType::Noise,
+                    ComplexDataType::DensityFunction => ValueType::DensityFunction,
+                    ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
+                    ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
+                    ComplexDataType::Reference(y) => ValueType::Reference(*y, "".to_string()),
+                };
+                graph.add_input_param(
+                    node_id, 
+                    "".to_string(), 
+                    DataType::List(*x), 
+                    ValueType::List(1), 
+                    InputParamKind::ConstantOnly, 
+                    true
+                );
+                graph.add_input_param(
+                    node_id, 
+                    "".to_string(), 
+                    DataType::Single(*x), 
+                    value_type, 
+                    InputParamKind::ConnectionOrConstant, 
+                    true
+                );
+            },
+            NodeTemplate::SurfaceRuleCondition(x) => {
+                graph.add_output_param(node_id, "out".to_string(), DataType::Single(ComplexDataType::SurfaceRuleCondition));
+                match x {
+                    SurfaceRuleConditionType::Biome => todo!(),
+                    SurfaceRuleConditionType::NoiseThreshold => todo!(),
+                    SurfaceRuleConditionType::VerticalGradient => todo!(),
+                    SurfaceRuleConditionType::YAbove => todo!(),
+                    SurfaceRuleConditionType::Water => todo!(),
+                    SurfaceRuleConditionType::Temperature => todo!(),
+                    SurfaceRuleConditionType::Steep => todo!(),
+                    SurfaceRuleConditionType::Not => todo!(),
+                    SurfaceRuleConditionType::Hole => todo!(),
+                    SurfaceRuleConditionType::AbovePreliminarySurface => todo!(),
+                    SurfaceRuleConditionType::StoneDepth => todo!(),
+                }
+            }
         }
     }
 }
@@ -184,9 +286,14 @@ impl NodeTemplateIter for AllNodeTemplates {
             NodeTemplate::DensityFunction(DensityFunctionType::Constant),
             NodeTemplate::DensityFunction(DensityFunctionType::Mul),
             NodeTemplate::DensityFunction(DensityFunctionType::Noise),
+            NodeTemplate::SurfaceRule(SurfaceRuleType::Bandlands),
+            NodeTemplate::SurfaceRule(SurfaceRuleType::Block),
+            NodeTemplate::SurfaceRule(SurfaceRuleType::Condition),
+            NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
             NodeTemplate::Noise,
             NodeTemplate::Reference(WindowType::DensityFunction),
-            NodeTemplate::Reference(WindowType::Noise)
+            NodeTemplate::Reference(WindowType::Noise),
+            NodeTemplate::List(ComplexDataType::SurfaceRule)
         ]
     }
 }

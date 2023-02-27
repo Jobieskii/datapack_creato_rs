@@ -11,6 +11,8 @@ use strum::EnumCount;
 
 
 use crate::file::WindowType;
+use crate::nodes::data_types::decrease_node_list_length;
+use crate::nodes::data_types::increase_node_list_length;
 use crate::ui::ComboBoxEnum;
 use crate::ui::NewWindowPrompt;
 use crate::{nodes::{NodeData, data_types::{DataType, ValueType}, node_types::{NodeTemplate, AllNodeTemplates}, GraphState, Response}, file::Window};
@@ -142,7 +144,9 @@ impl eframe::App for App<'_> {
                 if let NodeResponse::User(user_event) = node_response {
                     match user_event {
                         Response::SetActiveNode(node_id) => window.user_state.active_node = Some(node_id),
-                        Response::ClearActiveNode => window.user_state.active_node = None
+                        Response::ClearActiveNode => window.user_state.active_node = None,
+                        Response::IncreaseInputs(node_id) => increase_node_list_length(&mut window.state.graph, node_id),
+                        Response::DecreaseInputs(node_id) => decrease_node_list_length(&mut window.state.graph, node_id),
                     }
                 }
             }

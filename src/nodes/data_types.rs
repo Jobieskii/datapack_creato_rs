@@ -2,19 +2,26 @@ use std::borrow::Cow;
 use eframe::{egui::{self, DragValue}, epaint::Color32};
 use egui_node_graph::{DataTypeTrait, WidgetValueTrait, NodeId};
 
-use crate::{file::WindowType, app::Identifier};
+use crate::{file::WindowType, app::EditorStateType};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, node_types::NodeTemplate};
 
 
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum DataType {
     Value,
     Block,
+    ValuesArray,
+    List(ComplexDataType),
+    Single(ComplexDataType)
+}
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum ComplexDataType {
     Noise,
     DensityFunction,
-    ValuesArray,
+    SurfaceRule,
+    SurfaceRuleCondition,
     Reference(WindowType)
 }
 
@@ -23,10 +30,17 @@ impl DataTypeTrait<GraphState> for DataType {
         match self {
             DataType::Value => Color32::WHITE,
             DataType::Block => Color32::GREEN,
-            DataType::Noise => Color32::GOLD,
-            DataType::DensityFunction => Color32::LIGHT_GRAY,
+            DataType::Single(ComplexDataType::Noise) => Color32::GOLD,
+            DataType::Single(ComplexDataType::DensityFunction) => Color32::LIGHT_GRAY,
             DataType::ValuesArray => Color32::LIGHT_YELLOW,
-            DataType::Reference(x) => Color32::BLUE,
+            DataType::Single(ComplexDataType::Reference(_)) => Color32::BLUE,
+            DataType::Single(ComplexDataType::SurfaceRule) => Color32::RED,
+            DataType::Single(ComplexDataType::SurfaceRuleCondition) => Color32::LIGHT_RED,
+            DataType::List(x) => match x {
+                ComplexDataType::SurfaceRule => Color32::DARK_RED,
+                ComplexDataType::Reference(_) => Color32::DARK_GREEN,
+                _ => Color32::DEBUG_COLOR
+            },
         }
     }
 
@@ -34,10 +48,13 @@ impl DataTypeTrait<GraphState> for DataType {
         match self {
             DataType::Value => Cow::Borrowed("value"),
             DataType::Block => Cow::Borrowed("block"),
-            DataType::Noise => Cow::Borrowed("noise"),
-            DataType::DensityFunction => Cow::Borrowed("density function"),
+            DataType::Single(ComplexDataType::Noise) => Cow::Borrowed("noise"),
+            DataType::Single(ComplexDataType::DensityFunction) => Cow::Borrowed("density function"),
             DataType::ValuesArray => Cow::Borrowed("array of values"),
-            DataType::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
+            DataType::Single(ComplexDataType::Reference(x)) => Cow::Owned(format!("Reference ({})", x.as_ref())),
+            DataType::Single(ComplexDataType::SurfaceRule) => Cow::Borrowed("surface rule"),
+            DataType::Single(ComplexDataType::SurfaceRuleCondition) => Cow::Borrowed("surface rule condition"),
+            DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name()))
         }
     }
 }
@@ -49,7 +66,10 @@ pub enum ValueType {
     Block(BlockId),
     Noise,
     DensityFunction,
-    Reference(WindowType, String)
+    Reference(WindowType, String),
+    SurfaceRule,
+    SurfaceRuleCondition,
+    List(i32)
 }
 
 impl Default for ValueType {
@@ -66,11 +86,12 @@ impl WidgetValueTrait for ValueType {
     fn value_widget(
         &mut self,
         param_name: &str,
-        _node_id: NodeId,
+        node_id: NodeId,
         ui: &mut egui::Ui,
         _user_state: &mut Self::UserState,
         _node_data: &Self::NodeData,
     ) -> Vec<Self::Response> {
+        let mut ret = Vec::new();
         match self {
             ValueType::Value(x) => {
                 ui.horizontal(|ui| {
@@ -83,16 +104,6 @@ impl WidgetValueTrait for ValueType {
                     egui::ComboBox::from_label(param_name).show_index(ui, x, BLOCK_LIST.len(), |i| BLOCK_LIST[i].id.to_string());
                 });
             },
-            ValueType::DensityFunction => {
-                ui.horizontal(|ui| {
-                    ui.label(param_name);
-                });
-            }
-            ValueType::Noise => {
-                ui.horizontal(|ui| {
-                    ui.label(param_name);
-                });
-            }
             ValueType::ValuesArray(arr) => {
                 ui.vertical(|ui| {
                     for (i, val) in arr.iter_mut().enumerate() {
@@ -113,13 +124,44 @@ impl WidgetValueTrait for ValueType {
             },
             ValueType::Reference(window_type, id) => {
                 ui.vertical(|ui| {
-                    let mut text = String::new();
                     //TODO: add autocompletion here somehow
                     ui.text_edit_singleline(id);
                 });
             },
+            ValueType::List(x) => {
+                ui.horizontal(|ui| {
+                    ui.label(param_name);
+                    if *x > 0 {       
+                        if ui.small_button("+").clicked() {
+                            ret.push(Response::IncreaseInputs(node_id));
+                            *x += 1;
+                        }
+                        if *x > 1 && ui.small_button("-").clicked() {
+                            ret.push(Response::DecreaseInputs(node_id));
+                            *x -= 1;
+                        }
+                    }
+                });
+            }
+            _ => {
+                ui.horizontal(|ui| {
+                    ui.label(param_name);
+                });
+            }
         }
-        Vec::new()
+        ret
     }
 
+}
+
+pub fn decrease_node_list_length(graph: &mut GraphType, node_id: NodeId) {
+    if let Some(in_id) = graph.nodes.get(node_id).unwrap().input_ids().last() {
+        graph.connections.remove(in_id);
+        graph.nodes.get_mut(node_id).unwrap().inputs.retain(|(_, id)| *id != in_id);
+    }
+}
+pub fn increase_node_list_length(graph: &mut GraphType, node_id: NodeId) {
+    let in_id = graph.nodes.get(node_id).unwrap().inputs[1].1;
+    let input = graph.inputs.get(in_id).unwrap();
+    graph.add_input_param(node_id, "".to_string(), input.typ, input.value.clone(), input.kind, input.shown_inline);
 }

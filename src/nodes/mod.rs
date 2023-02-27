@@ -3,6 +3,7 @@ pub mod data_types;
 pub mod node_types;
 pub mod blocks;
 pub mod density_function;
+pub mod surface_rule;
 
 use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse};
 use eframe::egui;
@@ -80,7 +81,9 @@ impl NodeDataTrait for NodeData {
 #[derive(Clone, Copy, Debug)]
 pub enum Response {
     SetActiveNode(NodeId),
-    ClearActiveNode
+    ClearActiveNode,
+    IncreaseInputs(NodeId),
+    DecreaseInputs(NodeId)
 }
 impl UserResponseTrait for Response {
 
