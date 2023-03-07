@@ -1,23 +1,30 @@
+use std::fs::{File, DirBuilder};
 use std::hash::Hash;
+use std::io::{Write, self, Seek, SeekFrom};
+use std::path::PathBuf;
 use eframe::epaint::{Vec2, Pos2};
-use egui_node_graph::NodeTemplateTrait;
+use egui_node_graph::{NodeTemplateTrait, NodeId, Node};
 use enum_ordinalize::Ordinalize;
+use log::warn;
 use strum::{EnumCount, EnumIter, AsRefStr};
 
 use crate::nodes::node_types::NodeTemplate;
 use crate::ui::ComboBoxEnum;
 use crate::{nodes::GraphState, app::EditorStateType};
 
-#[derive(Clone)]
+// #[derive(Clone)]
+//TODO: use https://doc.rust-lang.org/1.39.0/std/path/struct.PathBuf.html ?
 pub struct Window {
     pub window_type: WindowType,
     pub name: String,
-    pub filepath: String,
+    pub filepath: PathBuf,
     pub namespace: String,
-  //  pub file: File,
+    /// empty if window is newly created
+    pub file: Option<File>,
     pub state: EditorStateType,
     pub user_state: GraphState,
-    pub dirty: bool
+    pub dirty: bool,
+    pub root_node: NodeId
 }
 
 impl PartialEq for Window {
@@ -62,24 +69,32 @@ impl ComboBoxEnum for WindowType{}
 
 
 impl Window {
-    pub fn new(filename: String, namespace: String, window_type: WindowType) -> Self {
+    pub fn new(filename: String, namespace: String, window_type: WindowType, project_path: &PathBuf) -> Self {
         let mut state = EditorStateType::default();
         let mut user_state = GraphState::default();
-        
-        Self::add_default_node(&mut state, &mut user_state, window_type);
-       // let file = File::open(filename);
+
+        let root_node = Self::add_default_node(&mut state, &mut user_state, window_type);
+        let mut filepath = project_path.clone();
+        filepath.push(&namespace);
+        filepath.push(Self::path_from(window_type));
+        filepath.push(&filename);
+        filepath.set_extension("json");
         Self {
             window_type,
-            name: filename.clone(),
-       //     file: file.unwrap(),
+            name: filename,
+            file: None,
             state,
             user_state,
             dirty: false,
-            filepath: Self::path_from(namespace.clone(), filename, window_type),
+            filepath,
             namespace,
+            root_node
         }
     }
-    fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) {
+    pub fn from_file() {
+        todo!()
+    }
+    fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) -> NodeId{
         let node_kind = NodeTemplate::Output(window_type);        
         let new_node = state.graph.add_node(
             node_kind.node_graph_label(user_state),
@@ -91,15 +106,28 @@ impl Window {
             Pos2::ZERO,
         );
         state.node_order.push(new_node);
+        new_node
     }
-    fn save_to_file(&self) {
-        //self.file.write(buf)
+    pub fn save_to_file(&mut self, s: String) {
+        if let Some(file) = self.file.as_mut() {
+            file.set_len(0);
+            file.seek(SeekFrom::Start(0));
+            file.write_all(s.as_bytes());
+        } else {
+            let mut dir = self.filepath.clone();
+            dir.pop();
+            DirBuilder::new()
+                .recursive(true)
+                .create(dir);
+
+            self.file = Some(File::create(&self.filepath).unwrap());
+            self.file.as_mut().unwrap().write_all(s.as_bytes());
+        }
     }
-    fn path_from(namespace: String, filename: String, window_type: WindowType) -> String {
-        let path = match window_type {
-            WindowType::DensityFunction => "/worldgen/density_function",
-            WindowType::Noise => "/worldgen/noise",
-        };
-        format!("{}{}/{}.json", namespace, path, filename)
-    } 
+    fn path_from(window_type: WindowType) -> String {
+        match window_type {
+            WindowType::DensityFunction => "worldgen/density_function",
+            WindowType::Noise => "worldgen/noise",
+        }.to_string()
+    }
 }

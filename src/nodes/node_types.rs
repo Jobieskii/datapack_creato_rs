@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use egui_node_graph::{NodeTemplateTrait, NodeId, InputParamKind, NodeTemplateIter, DataTypeTrait};
 
-use crate::file::WindowType;
+use crate::window::WindowType;
 
 use super::{NodeData, data_types::{DataType, ValueType, ComplexDataType}, GraphState, GraphType, density_function::DensityFunctionType, surface_rule::{SurfaceRuleType, SurfaceRuleConditionType}};
 
@@ -154,8 +154,8 @@ impl NodeTemplateTrait for NodeTemplate {
                 output_df(graph, "out");
             }
             NodeTemplate::Noise => {
-                input_value(graph, "First octave", InputParamKind::ConstantOnly);
-                input_values_arr(graph, "Amplitudes");
+                input_value(graph, "first_octave", InputParamKind::ConstantOnly);
+                input_values_arr(graph, "amplitudes");
                 output_noise(graph, "out");
             },
             NodeTemplate::Reference(x) => {

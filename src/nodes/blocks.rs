@@ -7,7 +7,7 @@ pub struct Block {
     pub id: &'static str,
     pub color: Color32
 }
-
+//TODO: should be a map???
 pub fn default_block_list() -> Vec<&'static Block> {
     vec![
         &Block{id:"minecraft:dirt", color: Color32::BROWN }

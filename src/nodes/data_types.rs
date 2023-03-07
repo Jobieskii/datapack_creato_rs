@@ -2,9 +2,9 @@ use std::borrow::Cow;
 use eframe::{egui::{self, DragValue}, epaint::Color32};
 use egui_node_graph::{DataTypeTrait, WidgetValueTrait, NodeId};
 
-use crate::{file::WindowType, app::EditorStateType};
+use crate::{window::WindowType};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, node_types::NodeTemplate};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType};
 
 
 

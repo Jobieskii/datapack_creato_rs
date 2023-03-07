@@ -1,21 +1,24 @@
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use eframe::egui;
 use eframe::egui::Button;
 use eframe::egui::TextEdit;
 use egui_node_graph::{GraphEditorState, NodeResponse};
+use log::warn;
 use strum::EnumCount;
 
 
 
-use crate::file::WindowType;
+use crate::serializer::JsonSerializer;
+use crate::window::WindowType;
 use crate::nodes::data_types::decrease_node_list_length;
 use crate::nodes::data_types::increase_node_list_length;
 use crate::ui::ComboBoxEnum;
 use crate::ui::NewWindowPrompt;
-use crate::{nodes::{NodeData, data_types::{DataType, ValueType}, node_types::{NodeTemplate, AllNodeTemplates}, GraphState, Response}, file::Window};
+use crate::{nodes::{NodeData, data_types::{DataType, ValueType}, node_types::{NodeTemplate, AllNodeTemplates}, GraphState, Response}, window::Window};
 
 pub type EditorStateType = GraphEditorState<NodeData, DataType, ValueType, NodeTemplate, GraphState>;
 
@@ -61,15 +64,29 @@ pub struct App<'a>{
     active_window: Option<&'a mut Window>,
     new_window_prompt: NewWindowPrompt,
     file_structure: [HashMap<Identifier, Window>; WindowType::COUNT],
+    project_path: PathBuf 
 }
 impl App<'_>{
-    pub fn new<'a>(_cc: &eframe::CreationContext) -> Self {
+    pub fn new<'a>(_cc: &eframe::CreationContext, project_path: PathBuf) -> Self {
         let map: [HashMap<Identifier, Window>; WindowType::COUNT] = [HashMap::<>::new(), HashMap::<>::new()];
         Self {
             file_structure: map,
             active_window: None,
-            new_window_prompt: NewWindowPrompt::new()
+            new_window_prompt: NewWindowPrompt::new(),
+            project_path
         }
+    }
+    fn serialize_all(&mut self) -> Result<(), ()>{
+        for filetype_map in self.file_structure.iter_mut() {
+            for window in filetype_map.values_mut() {
+                let node_id = window.root_node;
+                let graph = &window.state.graph;
+                if let Some(json) = graph.nodes.get(node_id).unwrap().user_data.serialize(node_id, &graph) {
+                    window.save_to_file(json.pretty(4));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -78,6 +95,11 @@ impl eframe::App for App<'_> {
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
+                if ui.button("save all").clicked() {
+                    if let Err(_) = self.serialize_all() {
+                        warn!("Something went wrong when saving.");
+                    }
+                }
             });
         });
         egui::SidePanel::left("outline").show(ctx, |ui| {
@@ -105,7 +127,7 @@ impl eframe::App for App<'_> {
                         //});
                         let enable = self.new_window_prompt.are_strings_correct();
                         if ui.add_enabled(enable, Button::new("Add file")).clicked() {
-                            let win = self.new_window_prompt.make_window();
+                            let win = self.new_window_prompt.make_window(&self.project_path);
                             self.file_structure[win.window_type as usize].insert(Identifier::new(win.namespace.clone(), win.name.clone(), win.window_type), win);
                             self.new_window_prompt.reset();
                             true

@@ -1,7 +1,9 @@
+use std::path::PathBuf;
+
 use eframe::egui::Ui;
 use strum::{IntoEnumIterator};
 
-use crate::file::{Window, WindowType};
+use crate::window::{Window, WindowType};
 
 pub trait ComboBoxEnum : IntoEnumIterator + AsRef<str> + PartialEq + Clone{
     fn show_ui(ui: &mut Ui, current_value: &mut Self) {
@@ -17,8 +19,8 @@ pub struct NewWindowPrompt {
     pub window_type: WindowType
 }
 impl NewWindowPrompt {
-    pub fn make_window(&self) -> Window{
-        Window::new(self.name.clone(), self.namespace.clone(), self.window_type)
+    pub fn make_window(&self, project_path: &PathBuf) -> Window{
+        Window::new(self.name.clone(), self.namespace.clone(), self.window_type, project_path)
     }
     //TODO: regex match potential namespace + path
     pub fn are_strings_correct (&self) -> bool{

@@ -11,7 +11,7 @@ use eframe::egui;
 use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate};
 
 
-type GraphType = Graph<NodeData, DataType, ValueType>;
+pub type GraphType = Graph<NodeData, DataType, ValueType>;
 
 #[derive(Clone, Copy)]
 pub struct NodeData {
@@ -69,10 +69,8 @@ impl NodeDataTrait for NodeData {
         graph: &Graph<Self, Self::DataType, Self::ValueType>,
         _user_state: &mut Self::UserState,
     ) -> bool {
-        if let Some(node) = graph.nodes.get(node_id) {
-            if let NodeTemplate::Output(_) = node.user_data.template {
-                return false
-            }
+        if let NodeTemplate::Output(_) = self.template {
+            return false
         }
         true
     }
