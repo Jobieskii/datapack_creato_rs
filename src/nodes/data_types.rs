@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 use eframe::{egui::{self, DragValue}, epaint::Color32};
 use egui_node_graph::{DataTypeTrait, WidgetValueTrait, NodeId};
+use strum::{EnumCount, IntoEnumIterator};
 
-use crate::{window::WindowType};
+use crate::{window::WindowType, ui::ComboBoxEnum};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, surface_rule::SurfaceRuleType};
 
 
 
@@ -13,6 +14,7 @@ pub enum DataType {
     Value,
     Block,
     ValuesArray,
+    SurfaceRuleType,
     List(ComplexDataType),
     Single(ComplexDataType)
 }
@@ -41,6 +43,7 @@ impl DataTypeTrait<GraphState> for DataType {
                 ComplexDataType::Reference(_) => Color32::DARK_GREEN,
                 _ => Color32::DEBUG_COLOR
             },
+            _ => Color32::DEBUG_COLOR
         }
     }
 
@@ -54,7 +57,8 @@ impl DataTypeTrait<GraphState> for DataType {
             DataType::Single(ComplexDataType::Reference(x)) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             DataType::Single(ComplexDataType::SurfaceRule) => Cow::Borrowed("surface rule"),
             DataType::Single(ComplexDataType::SurfaceRuleCondition) => Cow::Borrowed("surface rule condition"),
-            DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name()))
+            DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name())),
+            DataType::SurfaceRuleType => Cow::Borrowed("surface rule type"),
         }
     }
 }
@@ -69,7 +73,8 @@ pub enum ValueType {
     Reference(WindowType, String),
     SurfaceRule,
     SurfaceRuleCondition,
-    List(i32)
+    List(i32),
+    SurfaceRuleType(SurfaceRuleType)
 }
 
 impl Default for ValueType {
@@ -142,6 +147,17 @@ impl WidgetValueTrait for ValueType {
                         }
                     }
                 });
+            }
+            ValueType::SurfaceRuleType(x) => {
+                let y = x.clone();
+                ui.horizontal(|ui| {
+                    egui::ComboBox::from_label(param_name)
+                        .selected_text(x.as_ref())
+                        .show_ui(ui, |ui| {
+                            SurfaceRuleType::show_ui(ui, x);
+                        });
+                });
+                if *x != y {ret.push(Response::ChangeSurfaceRuleType(node_id, *x))}
             }
             _ => {
                 ui.horizontal(|ui| {

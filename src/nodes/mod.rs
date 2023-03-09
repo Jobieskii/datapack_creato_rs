@@ -5,10 +5,10 @@ pub mod blocks;
 pub mod density_function;
 pub mod surface_rule;
 
-use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse};
+use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, graph, InputId};
 use eframe::egui;
 
-use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate};
+use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate, surface_rule::SurfaceRuleType};
 
 
 pub type GraphType = Graph<NodeData, DataType, ValueType>;
@@ -81,7 +81,8 @@ pub enum Response {
     SetActiveNode(NodeId),
     ClearActiveNode,
     IncreaseInputs(NodeId),
-    DecreaseInputs(NodeId)
+    DecreaseInputs(NodeId),
+    ChangeSurfaceRuleType(NodeId, SurfaceRuleType)
 }
 impl UserResponseTrait for Response {
 
@@ -96,4 +97,14 @@ impl Default for GraphState {
             active_node: Default::default()
         }
     }
+}
+/// rebuilds node in place. Keeps output connection.
+pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, template: NodeTemplate) {
+    let node = graph.nodes.get(node_id).unwrap().clone();
+    let old_ouput = node.output_ids().next().unwrap();
+    let old_input = graph.connections.iter().find(|(i, &o)| o == old_ouput); 
+    node.input_ids().for_each(|x| graph.remove_input_param(x));
+    node.output_ids().for_each(|x| graph.remove_output_param(x));
+
+    todo!()
 }

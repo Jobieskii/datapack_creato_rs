@@ -37,13 +37,16 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             NodeTemplate::Output(x) => Cow::Owned(format!("Output ({})", x.as_ref())),
             NodeTemplate::List(x) => Cow::Owned(format!("List ({})", DataType::Single(*x).name())),
-            NodeTemplate::SurfaceRule(x) => Cow::Owned(x.to_string()),
+            NodeTemplate::SurfaceRule(_) => Cow::Borrowed("Surface Rule"),
             NodeTemplate::SurfaceRuleCondition(x) => Cow::Owned(x.to_string()),
         }
     }
 
     fn node_graph_label(&self, user_state: &mut Self::UserState) -> String {
-        self.node_finder_label(user_state).to_string()
+        match self {
+            NodeTemplate::SurfaceRule(x) => format!("Surface Rule({})", x.as_ref()),
+            _ => self.node_finder_label(user_state).to_string()
+        }
     }
 
     fn user_data(&self, _user_state: &mut Self::UserState) -> Self::NodeData {
@@ -170,12 +173,20 @@ impl NodeTemplateTrait for NodeTemplate {
                     input_df(graph, "output");
                 },
                 WindowType::Noise => {
-                    input_value(graph, "first_octave", InputParamKind::ConstantOnly);
+                    input_value(graph, "firstOctave", InputParamKind::ConstantOnly);
                     input_values_arr(graph, "amplitudes");
                 },
             },
             NodeTemplate::SurfaceRule(x) => {
                 graph.add_output_param(node_id, "out".to_string(), DataType::Single(ComplexDataType::SurfaceRule));
+                graph.add_input_param(
+                    node_id, 
+                    "type".to_string(), 
+                    DataType::SurfaceRuleType, 
+                    ValueType::SurfaceRuleType(*x), 
+                    InputParamKind::ConstantOnly, 
+                    true
+                );
                 match x {
                     SurfaceRuleType::Bandlands => {},
                     SurfaceRuleType::Block => {
@@ -286,9 +297,6 @@ impl NodeTemplateIter for AllNodeTemplates {
             NodeTemplate::DensityFunction(DensityFunctionType::Constant),
             NodeTemplate::DensityFunction(DensityFunctionType::Mul),
             NodeTemplate::DensityFunction(DensityFunctionType::Noise),
-            NodeTemplate::SurfaceRule(SurfaceRuleType::Bandlands),
-            NodeTemplate::SurfaceRule(SurfaceRuleType::Block),
-            NodeTemplate::SurfaceRule(SurfaceRuleType::Condition),
             NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
             NodeTemplate::Noise,
             NodeTemplate::Reference(WindowType::DensityFunction),

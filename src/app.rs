@@ -11,8 +11,7 @@ use log::warn;
 use strum::EnumCount;
 
 
-
-use crate::serializer::JsonSerializer;
+use crate::serializer::serialize;
 use crate::window::WindowType;
 use crate::nodes::data_types::decrease_node_list_length;
 use crate::nodes::data_types::increase_node_list_length;
@@ -81,7 +80,7 @@ impl App<'_>{
             for window in filetype_map.values_mut() {
                 let node_id = window.root_node;
                 let graph = &window.state.graph;
-                if let Some(json) = graph.nodes.get(node_id).unwrap().user_data.serialize(node_id, &graph) {
+                if let Some(json) = serialize(node_id, &graph) {
                     window.save_to_file(json.pretty(4));
                 }
             }
@@ -169,6 +168,7 @@ impl eframe::App for App<'_> {
                         Response::ClearActiveNode => window.user_state.active_node = None,
                         Response::IncreaseInputs(node_id) => increase_node_list_length(&mut window.state.graph, node_id),
                         Response::DecreaseInputs(node_id) => decrease_node_list_length(&mut window.state.graph, node_id),
+                        Response::ChangeSurfaceRuleType(node_id, surface_rule_type) => todo!(),
                     }
                 }
             }

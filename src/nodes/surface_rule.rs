@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use strum::{EnumIter, AsRefStr, EnumCount};
 
-#[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount)]
+use crate::ui::ComboBoxEnum;
+
+#[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq)]
 pub enum SurfaceRuleType {
     Bandlands,
     Block,
@@ -14,6 +16,7 @@ impl Display for SurfaceRuleType {
         write!(f, "{:?} (Surface Rule)", self)
     }
 }
+impl ComboBoxEnum for SurfaceRuleType{}
 
 #[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount)]
 pub enum SurfaceRuleConditionType {
