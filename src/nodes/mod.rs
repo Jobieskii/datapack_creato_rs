@@ -5,7 +5,7 @@ pub mod blocks;
 pub mod density_function;
 pub mod surface_rule;
 
-use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, graph, InputId};
+use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, graph, InputId, NodeTemplateTrait};
 use eframe::egui;
 
 use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate, surface_rule::SurfaceRuleType};
@@ -99,12 +99,16 @@ impl Default for GraphState {
     }
 }
 /// rebuilds node in place. Keeps output connection.
-pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, template: NodeTemplate) {
+pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut GraphState, template: NodeTemplate) {
     let node = graph.nodes.get(node_id).unwrap().clone();
     let old_ouput = node.output_ids().next().unwrap();
-    let old_input = graph.connections.iter().find(|(i, &o)| o == old_ouput); 
+    let old_input_opt = graph.connections.iter().find(|(_, &o)| o == old_ouput).map(|(i, o)| i); 
     node.input_ids().for_each(|x| graph.remove_input_param(x));
     node.output_ids().for_each(|x| graph.remove_output_param(x));
 
-    todo!()
+    template.build_node(graph, user_state, node_id);
+    if let Some(old_input) = old_input_opt {
+        let new_output = graph.nodes.get(node_id).unwrap().output_ids().next().unwrap();
+        graph.add_connection(new_output, old_input);
+    }
 }

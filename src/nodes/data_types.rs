@@ -5,7 +5,7 @@ use strum::{EnumCount, IntoEnumIterator};
 
 use crate::{window::WindowType, ui::ComboBoxEnum};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, surface_rule::SurfaceRuleType};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, surface_rule::SurfaceRuleType, density_function::DensityFunctionType};
 
 
 
@@ -41,9 +41,9 @@ impl DataTypeTrait<GraphState> for DataType {
             DataType::List(x) => match x {
                 ComplexDataType::SurfaceRule => Color32::DARK_RED,
                 ComplexDataType::Reference(_) => Color32::DARK_GREEN,
-                _ => Color32::DEBUG_COLOR
+                _ => unimplemented!()
             },
-            _ => Color32::DEBUG_COLOR
+            _ => unimplemented!()
         }
     }
 
@@ -74,7 +74,7 @@ pub enum ValueType {
     SurfaceRule,
     SurfaceRuleCondition,
     List(i32),
-    SurfaceRuleType(SurfaceRuleType)
+    SurfaceRuleType(SurfaceRuleType),
 }
 
 impl Default for ValueType {
@@ -177,7 +177,7 @@ pub fn decrease_node_list_length(graph: &mut GraphType, node_id: NodeId) {
     }
 }
 pub fn increase_node_list_length(graph: &mut GraphType, node_id: NodeId) {
-    let in_id = graph.nodes.get(node_id).unwrap().inputs[1].1;
+    let in_id = graph.nodes.get(node_id).unwrap().inputs.last().unwrap().1;
     let input = graph.inputs.get(in_id).unwrap();
     graph.add_input_param(node_id, "".to_string(), input.typ, input.value.clone(), input.kind, input.shown_inline);
 }

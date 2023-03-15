@@ -11,6 +11,7 @@ use log::warn;
 use strum::EnumCount;
 
 
+use crate::nodes::rebuild_node;
 use crate::serializer::serialize;
 use crate::window::WindowType;
 use crate::nodes::data_types::decrease_node_list_length;
@@ -168,7 +169,12 @@ impl eframe::App for App<'_> {
                         Response::ClearActiveNode => window.user_state.active_node = None,
                         Response::IncreaseInputs(node_id) => increase_node_list_length(&mut window.state.graph, node_id),
                         Response::DecreaseInputs(node_id) => decrease_node_list_length(&mut window.state.graph, node_id),
-                        Response::ChangeSurfaceRuleType(node_id, surface_rule_type) => todo!(),
+                        Response::ChangeSurfaceRuleType(node_id, surface_rule_type) => rebuild_node(
+                            node_id, 
+                            &mut window.state.graph, 
+                            &mut window.user_state, 
+                            NodeTemplate::SurfaceRule(surface_rule_type)
+                        ),
                     }
                 }
             }
