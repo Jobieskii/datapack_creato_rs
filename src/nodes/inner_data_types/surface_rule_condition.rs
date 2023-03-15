@@ -2,23 +2,11 @@ use std::fmt::Display;
 
 use strum::{EnumIter, AsRefStr, EnumCount};
 
-use crate::ui::ComboBoxEnum;
+use crate::{nodes::node_types::NodeTemplate, ui::ComboBoxEnum};
+
+use super::InnerDataType;
 
 #[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq)]
-pub enum SurfaceRuleType {
-    Bandlands,
-    Block,
-    Sequence,
-    Condition
-}
-impl Display for SurfaceRuleType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} (Surface Rule)", self)
-    }
-}
-impl ComboBoxEnum for SurfaceRuleType{}
-
-#[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount)]
 pub enum SurfaceRuleConditionType {
     Biome, 
     NoiseThreshold, 
@@ -35,5 +23,13 @@ pub enum SurfaceRuleConditionType {
 impl Display for SurfaceRuleConditionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} (Surface Rule Condition)", self)
+    }
+}
+
+impl ComboBoxEnum for SurfaceRuleConditionType {}
+
+impl InnerDataType for SurfaceRuleConditionType {
+    fn to_NodeTemplate (&self) -> NodeTemplate {
+        NodeTemplate::SurfaceRuleCondition(*self)
     }
 }

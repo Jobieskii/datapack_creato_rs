@@ -58,7 +58,7 @@ fn input_to_json_value(input: &InputParam<DataType, ValueType>) -> Option<JsonVa
             crate::nodes::data_types::ComplexDataType::Reference(_) => todo!(),
         },
         DataType::Single(_) => todo!(),
-        DataType::SurfaceRuleType => todo!(),
+        DataType::ValueTypeSwitcher => todo!(),
     };
     value
 }

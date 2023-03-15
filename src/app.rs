@@ -169,11 +169,11 @@ impl eframe::App for App<'_> {
                         Response::ClearActiveNode => window.user_state.active_node = None,
                         Response::IncreaseInputs(node_id) => increase_node_list_length(&mut window.state.graph, node_id),
                         Response::DecreaseInputs(node_id) => decrease_node_list_length(&mut window.state.graph, node_id),
-                        Response::ChangeSurfaceRuleType(node_id, surface_rule_type) => rebuild_node(
+                        Response::ChangeNodeType(node_id, new_template) => rebuild_node(
                             node_id, 
                             &mut window.state.graph, 
                             &mut window.user_state, 
-                            NodeTemplate::SurfaceRule(surface_rule_type)
+                            new_template
                         ),
                     }
                 }

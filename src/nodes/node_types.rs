@@ -4,10 +4,10 @@ use egui_node_graph::{NodeTemplateTrait, NodeId, InputParamKind, NodeTemplateIte
 
 use crate::window::WindowType;
 
-use super::{NodeData, data_types::{DataType, ValueType, ComplexDataType}, GraphState, GraphType, density_function::DensityFunctionType, surface_rule::{SurfaceRuleType, SurfaceRuleConditionType}};
+use super::{NodeData, data_types::{DataType, ValueType, ComplexDataType, SwitchableInnerValueType}, GraphState, GraphType, inner_data_types::{density_function::DensityFunctionType, surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType}};
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum NodeTemplate {
     ConstantValue,
     AddValue,
@@ -32,7 +32,7 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::ConstantValue => Cow::Borrowed("Value"),
             NodeTemplate::AddValue => Cow::Borrowed("Add"),
             NodeTemplate::ConstantBlock => Cow::Borrowed("Block"),
-            NodeTemplate::DensityFunction(x) => Cow::Owned(x.to_string()),
+            NodeTemplate::DensityFunction(x) => Cow::Borrowed("Density Function"),
             NodeTemplate::Noise => Cow::Borrowed("Noise"),
             NodeTemplate::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             NodeTemplate::Output(x) => Cow::Owned(format!("Output ({})", x.as_ref())),
@@ -44,7 +44,8 @@ impl NodeTemplateTrait for NodeTemplate {
 
     fn node_graph_label(&self, user_state: &mut Self::UserState) -> String {
         match self {
-            NodeTemplate::SurfaceRule(x) => format!("Surface Rule({})", x.as_ref()),
+            NodeTemplate::SurfaceRule(x) => format!("Surface Rule ({})", x.as_ref()),
+            NodeTemplate::DensityFunction(x) => format!("Denstity Function ({})", x.as_ref()),
             _ => self.node_finder_label(user_state).to_string()
         }
     }
@@ -121,6 +122,9 @@ impl NodeTemplateTrait for NodeTemplate {
         let input_reference = |graph: &mut GraphType, name: &str, kind: InputParamKind, window_type: &WindowType| {
             graph.add_input_param(node_id, name.to_string(), DataType::Single(ComplexDataType::Reference(*window_type)), ValueType::Reference(*window_type, String::new()), kind, true);
         };
+        let input_type_switch = |graph: &mut GraphType, st: SwitchableInnerValueType| {
+            graph.add_input_param(node_id, String::from("type"), DataType::ValueTypeSwitcher, ValueType::InnerTypeSwitch(st), InputParamKind::ConstantOnly, true);
+        };
         //TODO: Make sure label wording matches JSON
         match self {
             NodeTemplate::ConstantValue => {
@@ -136,26 +140,29 @@ impl NodeTemplateTrait for NodeTemplate {
                 input_block(graph, "block", InputParamKind::ConstantOnly);
                 output_block(graph, "out");
             },
-            NodeTemplate::DensityFunction(DensityFunctionType::Add) => {
-                input_df(graph, "arg1");
-                input_df(graph, "arg2");
+            NodeTemplate::DensityFunction(x) => {
                 output_df(graph, "out");
+                input_type_switch(graph, SwitchableInnerValueType::DensityFunction(*x));
+                match x {
+                    DensityFunctionType::Add => {
+                        input_df(graph, "arg1");
+                        input_df(graph, "arg2");
+                    },
+                    DensityFunctionType::Constant => {
+                        input_value(graph, "value", InputParamKind::ConstantOnly);
+                    }
+                    DensityFunctionType::Mul => {
+                        input_df(graph, "arg1");
+                        input_df(graph, "arg2");
+                    }
+                    DensityFunctionType::Noise => {
+                        input_noise(graph, "noise");
+                        input_value(graph, "XZ scale", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "Y scale", InputParamKind::ConnectionOrConstant);
+                    }
+                }
             },
-            NodeTemplate::DensityFunction(DensityFunctionType::Constant) => {
-                input_value(graph, "value", InputParamKind::ConstantOnly);
-                output_df(graph, "out");
-            }
-            NodeTemplate::DensityFunction(DensityFunctionType::Mul) => {
-                input_df(graph, "arg1");
-                input_df(graph, "arg2");
-                output_df(graph, "out");
-            }
-            NodeTemplate::DensityFunction(DensityFunctionType::Noise) => {
-                input_noise(graph, "noise");
-                input_value(graph, "XZ scale", InputParamKind::ConnectionOrConstant);
-                input_value(graph, "Y scale", InputParamKind::ConnectionOrConstant);
-                output_df(graph, "out");
-            }
+            
             NodeTemplate::Noise => {
                 input_value(graph, "first_octave", InputParamKind::ConstantOnly);
                 input_values_arr(graph, "amplitudes");
@@ -179,14 +186,7 @@ impl NodeTemplateTrait for NodeTemplate {
             },
             NodeTemplate::SurfaceRule(x) => {
                 graph.add_output_param(node_id, "out".to_string(), DataType::Single(ComplexDataType::SurfaceRule));
-                graph.add_input_param(
-                    node_id, 
-                    "type".to_string(), 
-                    DataType::SurfaceRuleType, 
-                    ValueType::SurfaceRuleType(*x), 
-                    InputParamKind::ConstantOnly, 
-                    true
-                );
+                input_type_switch(graph, SwitchableInnerValueType::SurfaceRule(*x));
                 match x {
                     SurfaceRuleType::Bandlands => {},
                     SurfaceRuleType::Block => {
@@ -293,10 +293,7 @@ impl NodeTemplateIter for AllNodeTemplates {
             NodeTemplate::ConstantValue,
             NodeTemplate::AddValue,
             NodeTemplate::ConstantBlock,
-            NodeTemplate::DensityFunction(DensityFunctionType::Add),
             NodeTemplate::DensityFunction(DensityFunctionType::Constant),
-            NodeTemplate::DensityFunction(DensityFunctionType::Mul),
-            NodeTemplate::DensityFunction(DensityFunctionType::Noise),
             NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
             NodeTemplate::Noise,
             NodeTemplate::Reference(WindowType::DensityFunction),

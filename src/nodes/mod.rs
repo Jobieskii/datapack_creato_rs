@@ -2,13 +2,14 @@
 pub mod data_types;
 pub mod node_types;
 pub mod blocks;
-pub mod density_function;
-pub mod surface_rule;
+pub mod inner_data_types;
 
-use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, graph, InputId, NodeTemplateTrait};
+
+use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, NodeTemplateTrait};
 use eframe::egui;
 
-use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate, surface_rule::SurfaceRuleType};
+
+use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate};
 
 
 pub type GraphType = Graph<NodeData, DataType, ValueType>;
@@ -82,7 +83,7 @@ pub enum Response {
     ClearActiveNode,
     IncreaseInputs(NodeId),
     DecreaseInputs(NodeId),
-    ChangeSurfaceRuleType(NodeId, SurfaceRuleType)
+    ChangeNodeType(NodeId, NodeTemplate)
 }
 impl UserResponseTrait for Response {
 

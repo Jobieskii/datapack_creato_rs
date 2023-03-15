@@ -58,7 +58,7 @@ impl PartialOrd for Window {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Copy, Clone, EnumCount, EnumIter, AsRefStr, Hash, Eq, Ordinalize)]
+#[derive(PartialEq, PartialOrd, Copy, Clone, EnumCount, EnumIter, AsRefStr, Hash, Eq, Ordinalize, Debug)]
 pub enum WindowType {
     #[strum(serialize= "Density Function")]
     DensityFunction,

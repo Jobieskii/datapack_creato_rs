@@ -1,11 +1,10 @@
 use std::borrow::Cow;
-use eframe::{egui::{self, DragValue}, epaint::Color32};
+use eframe::{egui::{self, DragValue, Ui}, epaint::Color32};
 use egui_node_graph::{DataTypeTrait, WidgetValueTrait, NodeId};
-use strum::{EnumCount, IntoEnumIterator};
 
 use crate::{window::WindowType, ui::ComboBoxEnum};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, surface_rule::SurfaceRuleType, density_function::DensityFunctionType};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, inner_data_types::{surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType, density_function::DensityFunctionType, InnerDataType}};
 
 
 
@@ -14,11 +13,11 @@ pub enum DataType {
     Value,
     Block,
     ValuesArray,
-    SurfaceRuleType,
+    ValueTypeSwitcher,
     List(ComplexDataType),
     Single(ComplexDataType)
 }
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ComplexDataType {
     Noise,
     DensityFunction,
@@ -58,7 +57,7 @@ impl DataTypeTrait<GraphState> for DataType {
             DataType::Single(ComplexDataType::SurfaceRule) => Cow::Borrowed("surface rule"),
             DataType::Single(ComplexDataType::SurfaceRuleCondition) => Cow::Borrowed("surface rule condition"),
             DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name())),
-            DataType::SurfaceRuleType => Cow::Borrowed("surface rule type"),
+            DataType::ValueTypeSwitcher => Cow::Borrowed("value type switcher"),
         }
     }
 }
@@ -74,7 +73,13 @@ pub enum ValueType {
     SurfaceRule,
     SurfaceRuleCondition,
     List(i32),
-    SurfaceRuleType(SurfaceRuleType),
+    InnerTypeSwitch(SwitchableInnerValueType),
+}
+#[derive(Clone, Copy, Debug)]
+pub enum SwitchableInnerValueType {
+    SurfaceRule(SurfaceRuleType),
+    SurfaceRuleCondition(SurfaceRuleConditionType),
+    DensityFunction(DensityFunctionType)
 }
 
 impl Default for ValueType {
@@ -148,16 +153,12 @@ impl WidgetValueTrait for ValueType {
                     }
                 });
             }
-            ValueType::SurfaceRuleType(x) => {
-                let y = x.clone();
-                ui.horizontal(|ui| {
-                    egui::ComboBox::from_label(param_name)
-                        .selected_text(x.as_ref())
-                        .show_ui(ui, |ui| {
-                            SurfaceRuleType::show_ui(ui, x);
-                        });
-                });
-                if *x != y {ret.push(Response::ChangeSurfaceRuleType(node_id, *x))}
+            ValueType::InnerTypeSwitch(x) => {
+                match x {
+                    SwitchableInnerValueType::SurfaceRule(x) => switcher_widget(x, ui, param_name, &mut ret, node_id),
+                    SwitchableInnerValueType::SurfaceRuleCondition(x) => switcher_widget(x, ui, param_name, &mut ret, node_id),
+                    SwitchableInnerValueType::DensityFunction(x) => switcher_widget(x, ui, param_name, &mut ret, node_id),
+                }
             }
             _ => {
                 ui.horizontal(|ui| {
@@ -168,6 +169,20 @@ impl WidgetValueTrait for ValueType {
         ret
     }
 
+}
+fn switcher_widget<T: InnerDataType>(x: &mut T, ui: &mut Ui, param_name: &str, ret: &mut Vec<Response>, node_id: NodeId) {
+    let y = x.clone();
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_label(param_name)
+            .selected_text(x.as_ref())
+            .show_ui(ui, |ui| {
+                T::show_ui(ui, x);
+            });
+    });
+    if *x != y {
+        let template = x.to_NodeTemplate();
+        ret.push(Response::ChangeNodeType(node_id, template))
+    }
 }
 
 pub fn decrease_node_list_length(graph: &mut GraphType, node_id: NodeId) {
