@@ -18,7 +18,6 @@ pub enum NodeTemplate {
     Output(WindowType),
     SurfaceRule(SurfaceRuleType),
     SurfaceRuleCondition(SurfaceRuleConditionType),
-    List(ComplexDataType)
 }
 
 impl NodeTemplateTrait for NodeTemplate {
@@ -36,7 +35,6 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::Noise => Cow::Borrowed("Noise"),
             NodeTemplate::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             NodeTemplate::Output(x) => Cow::Owned(format!("Output ({})", x.as_ref())),
-            NodeTemplate::List(x) => Cow::Owned(format!("List ({})", DataType::Single(*x).name())),
             NodeTemplate::SurfaceRule(_) => Cow::Borrowed("Surface Rule"),
             NodeTemplate::SurfaceRuleCondition(x) => Cow::Owned(x.to_string()),
         }
@@ -120,7 +118,7 @@ impl NodeTemplateTrait for NodeTemplate {
             );
         };
         let input_reference = |graph: &mut GraphType, name: &str, kind: InputParamKind, window_type: &WindowType| {
-            graph.add_input_param(node_id, name.to_string(), DataType::Single(ComplexDataType::Reference(*window_type)), ValueType::Reference(*window_type, String::new()), kind, true);
+            graph.add_input_param(node_id, name.to_string(), DataType::Reference(*window_type), ValueType::Reference(*window_type, String::new()), kind, true);
         };
         let input_type_switch = |graph: &mut GraphType, st: SwitchableInnerValueType| {
             graph.add_input_param(node_id, String::from("type"), DataType::ValueTypeSwitcher, ValueType::InnerTypeSwitch(st), InputParamKind::ConstantOnly, true);
@@ -145,15 +143,15 @@ impl NodeTemplateTrait for NodeTemplate {
                 input_type_switch(graph, SwitchableInnerValueType::DensityFunction(*x));
                 match x {
                     DensityFunctionType::Add => {
-                        input_df(graph, "arg1");
-                        input_df(graph, "arg2");
+                        input_df(graph, "argument1");
+                        input_df(graph, "argument2");
                     },
                     DensityFunctionType::Constant => {
-                        input_value(graph, "value", InputParamKind::ConstantOnly);
+                        input_value(graph, "argument", InputParamKind::ConstantOnly);
                     }
                     DensityFunctionType::Mul => {
-                        input_df(graph, "arg1");
-                        input_df(graph, "arg2");
+                        input_df(graph, "argument1");
+                        input_df(graph, "argument2");
                     }
                     DensityFunctionType::Noise => {
                         input_noise(graph, "noise");
@@ -202,7 +200,7 @@ impl NodeTemplateTrait for NodeTemplate {
                     SurfaceRuleType::Sequence => {
                         graph.add_input_param(
                             node_id, 
-                            "".to_string(), 
+                            "sequence".to_string(), 
                             DataType::List(ComplexDataType::SurfaceRule), 
                             ValueType::List(1), 
                             InputParamKind::ConstantOnly, 
@@ -237,33 +235,6 @@ impl NodeTemplateTrait for NodeTemplate {
                     },
                 };
             },
-            //TODO: Is this necessary? Along with datatype::List(x) having colors and names
-            NodeTemplate::List(x) => {
-                graph.add_output_param(node_id, "out".to_string(), DataType::List(*x));
-                let value_type = match x {
-                    ComplexDataType::Noise => ValueType::Noise,
-                    ComplexDataType::DensityFunction => ValueType::DensityFunction,
-                    ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
-                    ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
-                    ComplexDataType::Reference(y) => ValueType::Reference(*y, "".to_string()),
-                };
-                graph.add_input_param(
-                    node_id, 
-                    "".to_string(), 
-                    DataType::List(*x), 
-                    ValueType::List(1), 
-                    InputParamKind::ConstantOnly, 
-                    true
-                );
-                graph.add_input_param(
-                    node_id, 
-                    "".to_string(), 
-                    DataType::Single(*x), 
-                    value_type, 
-                    InputParamKind::ConnectionOrConstant, 
-                    true
-                );
-            },
             NodeTemplate::SurfaceRuleCondition(x) => {
                 graph.add_output_param(node_id, "out".to_string(), DataType::Single(ComplexDataType::SurfaceRuleCondition));
                 match x {
@@ -297,8 +268,7 @@ impl NodeTemplateIter for AllNodeTemplates {
             NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
             NodeTemplate::Noise,
             NodeTemplate::Reference(WindowType::DensityFunction),
-            NodeTemplate::Reference(WindowType::Noise),
-            NodeTemplate::List(ComplexDataType::SurfaceRule)
+            NodeTemplate::Reference(WindowType::Noise)
         ]
     }
 }

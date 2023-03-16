@@ -7,6 +7,7 @@ use crate::{ui::ComboBoxEnum, nodes::node_types::NodeTemplate};
 use super::InnerDataType;
 
 #[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq)]
+#[strum(serialize_all = "snake_case")]
 pub enum SurfaceRuleType {
     Bandlands,
     Block,

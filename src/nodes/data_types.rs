@@ -13,6 +13,7 @@ pub enum DataType {
     Value,
     Block,
     ValuesArray,
+    Reference(WindowType),
     ValueTypeSwitcher,
     List(ComplexDataType),
     Single(ComplexDataType)
@@ -22,8 +23,7 @@ pub enum ComplexDataType {
     Noise,
     DensityFunction,
     SurfaceRule,
-    SurfaceRuleCondition,
-    Reference(WindowType)
+    SurfaceRuleCondition
 }
 
 impl DataTypeTrait<GraphState> for DataType {
@@ -34,14 +34,10 @@ impl DataTypeTrait<GraphState> for DataType {
             DataType::Single(ComplexDataType::Noise) => Color32::GOLD,
             DataType::Single(ComplexDataType::DensityFunction) => Color32::LIGHT_GRAY,
             DataType::ValuesArray => Color32::LIGHT_YELLOW,
-            DataType::Single(ComplexDataType::Reference(_)) => Color32::BLUE,
+            DataType::Reference(_) => Color32::BLUE,
             DataType::Single(ComplexDataType::SurfaceRule) => Color32::RED,
             DataType::Single(ComplexDataType::SurfaceRuleCondition) => Color32::LIGHT_RED,
-            DataType::List(x) => match x {
-                ComplexDataType::SurfaceRule => Color32::DARK_RED,
-                ComplexDataType::Reference(_) => Color32::DARK_GREEN,
-                _ => unimplemented!()
-            },
+            DataType::List(x) => unimplemented!(),
             _ => unimplemented!()
         }
     }
@@ -53,7 +49,7 @@ impl DataTypeTrait<GraphState> for DataType {
             DataType::Single(ComplexDataType::Noise) => Cow::Borrowed("noise"),
             DataType::Single(ComplexDataType::DensityFunction) => Cow::Borrowed("density function"),
             DataType::ValuesArray => Cow::Borrowed("array of values"),
-            DataType::Single(ComplexDataType::Reference(x)) => Cow::Owned(format!("Reference ({})", x.as_ref())),
+            DataType::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             DataType::Single(ComplexDataType::SurfaceRule) => Cow::Borrowed("surface rule"),
             DataType::Single(ComplexDataType::SurfaceRuleCondition) => Cow::Borrowed("surface rule condition"),
             DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name())),

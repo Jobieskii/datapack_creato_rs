@@ -7,6 +7,7 @@ use crate::{nodes::node_types::NodeTemplate, ui::ComboBoxEnum};
 use super::InnerDataType;
 
 #[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq)]
+#[strum(serialize_all = "snake_case")]
 pub enum SurfaceRuleConditionType {
     Biome, 
     NoiseThreshold, 

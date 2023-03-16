@@ -108,6 +108,9 @@ pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut Gra
     node.output_ids().for_each(|x| graph.remove_output_param(x));
 
     template.build_node(graph, user_state, node_id);
+    let mut node = graph.nodes.get_mut(node_id).unwrap();
+    node.user_data.template = template;
+    node.label = template.node_graph_label(user_state);
     if let Some(old_input) = old_input_opt {
         let new_output = graph.nodes.get(node_id).unwrap().output_ids().next().unwrap();
         graph.add_connection(new_output, old_input);
