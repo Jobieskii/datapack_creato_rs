@@ -74,8 +74,10 @@ fn input_to_json_value(in_id: &InputId, input: &InputParam<DataType, ValueType>,
                     ))
             } else { None }
         },
-        DataType::List(dt) => unimplemented!(),
-        DataType::Single(dt) => match dt {
+        // This should never happen
+        DataType::List(_) => unimplemented!(),
+        // Not a blanket `unimplemented!` as we may want to add some cdt that has constant type of input, a.k.a non empty ValueType.
+        DataType::Single(cdt) => match cdt {
             _ => unimplemented!()
         },
         DataType::ValueTypeSwitcher => {
