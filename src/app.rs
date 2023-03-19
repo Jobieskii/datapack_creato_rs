@@ -7,13 +7,13 @@ use eframe::egui;
 use eframe::egui::Button;
 use eframe::egui::TextEdit;
 use egui_node_graph::{GraphEditorState, NodeResponse};
+use log::error;
 use log::info;
 use log::warn;
 use strum::EnumCount;
 
 
 use crate::nodes::rebuild_node;
-use crate::serializer::serialize;
 use crate::window::WindowType;
 use crate::nodes::data_types::decrease_node_list_length;
 use crate::nodes::data_types::increase_node_list_length;
@@ -80,11 +80,11 @@ impl App<'_>{
     fn serialize_all(&mut self) -> Result<(), ()>{
         for filetype_map in self.file_structure.iter_mut() {
             for window in filetype_map.values_mut() {
-                info!("Serializing window {}:{} ({})", window.namespace, window.name, window.window_type.as_ref());
-                let node_id = window.root_node;
-                let graph = &window.state.graph;
-                if let Some(json) = serialize(node_id, &graph) {
+                info!("Serializing window {}", window);
+                if let Some(json) = window.serialize() {
                     window.save_to_file(json.pretty(4));
+                } else {
+                    error!("Window failed to serialize {}", window)
                 }
             }
         }

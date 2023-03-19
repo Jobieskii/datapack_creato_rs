@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::fs::{File, DirBuilder};
 use std::hash::Hash;
 use std::io::{Write, self, Seek, SeekFrom};
@@ -13,7 +14,6 @@ use crate::ui::ComboBoxEnum;
 use crate::{nodes::GraphState, app::EditorStateType};
 
 // #[derive(Clone)]
-//TODO: use https://doc.rust-lang.org/1.39.0/std/path/struct.PathBuf.html ?
 pub struct Window {
     pub window_type: WindowType,
     pub name: String,
@@ -67,6 +67,11 @@ pub enum WindowType {
 
 impl ComboBoxEnum for WindowType{}
 
+impl Display for Window {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{} ({})", self.namespace, self.name, self.window_type.as_ref())
+    }
+}
 
 impl Window {
     pub fn new(filename: String, namespace: String, window_type: WindowType, project_path: &PathBuf) -> Self {
