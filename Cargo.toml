@@ -11,5 +11,6 @@ egui_node_graph = "0.4.0"
 enum-ordinalize = "3.1.12"
 json = "0.12.4"
 log = "0.4.17"
+simple_logger = "4.1.0"
 strum = { version = "0.24", features = ["derive"] }
 strum_macros = "0.24"

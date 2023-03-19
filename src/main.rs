@@ -1,7 +1,7 @@
 #![feature(once_cell)] 
 use app::App;
 use std::path::PathBuf;
-
+use simple_logger::SimpleLogger;
 mod app;
 mod nodes;
 mod window;
@@ -9,6 +9,8 @@ mod ui;
 mod serializer;
 
 fn main() {
+    // TODO: Rather than just logging error messages, display them in the UI (global queue of messages?)
+    SimpleLogger::new().init().unwrap();
     let native_options = eframe::NativeOptions::default();
     let path = std::env::args().nth(1).unwrap_or(String::new());
     eframe::run_native(

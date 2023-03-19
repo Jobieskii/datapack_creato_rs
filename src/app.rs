@@ -7,6 +7,7 @@ use eframe::egui;
 use eframe::egui::Button;
 use eframe::egui::TextEdit;
 use egui_node_graph::{GraphEditorState, NodeResponse};
+use log::info;
 use log::warn;
 use strum::EnumCount;
 
@@ -79,6 +80,7 @@ impl App<'_>{
     fn serialize_all(&mut self) -> Result<(), ()>{
         for filetype_map in self.file_structure.iter_mut() {
             for window in filetype_map.values_mut() {
+                info!("Serializing window {}:{}", window.namespace, window.name);
                 let node_id = window.root_node;
                 let graph = &window.state.graph;
                 if let Some(json) = serialize(node_id, &graph) {
