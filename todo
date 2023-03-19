@@ -1,6 +1,17 @@
-[ ] Serialize with serde to special project file / folder
+[?] Serialize with serde to special project file / folder
 [ ] Serialize and deserialize from json datapack format
+    [x] Serialize
+    [ ] deserialize
+        [ ] auto pack nodes in graph (HOWWW?)
     [ ] try on minecraft data
 [ ] Visualisation
     [ ] ...
 [ ] Add every node type
+[ ] ask for folder when app starts (without command line argument)
+[ ] Error messages in the Ui
+
+to think about: 
+    Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs)
+    Should windows_type be more than an enum 
+        ( different window may want a different visualizer, 
+         or maybe even editor (text instead of graph for commands) – this can also help with node picker )

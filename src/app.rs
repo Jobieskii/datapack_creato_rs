@@ -80,7 +80,7 @@ impl App<'_>{
     fn serialize_all(&mut self) -> Result<(), ()>{
         for filetype_map in self.file_structure.iter_mut() {
             for window in filetype_map.values_mut() {
-                info!("Serializing window {}:{}", window.namespace, window.name);
+                info!("Serializing window {}:{} ({})", window.namespace, window.name, window.window_type.as_ref());
                 let node_id = window.root_node;
                 let graph = &window.state.graph;
                 if let Some(json) = serialize(node_id, &graph) {

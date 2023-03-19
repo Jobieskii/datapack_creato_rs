@@ -162,7 +162,7 @@ impl NodeTemplateTrait for NodeTemplate {
             },
             
             NodeTemplate::Noise => {
-                input_value(graph, "first_octave", InputParamKind::ConstantOnly);
+                input_value(graph, "firstOctave", InputParamKind::ConstantOnly);
                 input_values_arr(graph, "amplitudes");
                 output_noise(graph, "out");
             },

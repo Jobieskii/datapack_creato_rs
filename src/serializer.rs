@@ -36,7 +36,6 @@ fn serialize_inner(node_id: NodeId, graph: &GraphType, visited: &mut HashSet<Nod
 
     for (n, (label, in_id)) in node.inputs.iter().enumerate() {
         let input = graph.get_input(*in_id);
-        let lowercase_label = &*label.to_lowercase();
     
         if let DataType::List(_) = input.typ {
             let rest = node.inputs.iter()
@@ -45,13 +44,13 @@ fn serialize_inner(node_id: NodeId, graph: &GraphType, visited: &mut HashSet<Nod
                 let o_input = graph.get_input(*o_id);
                 input_to_json_value(o_id, o_input, graph, visited)
             }).collect();
-            o.insert(lowercase_label, JsonValue::Array(rest));
+            o.insert(label, JsonValue::Array(rest));
             break;
     
         } else {
             let value = input_to_json_value(in_id, input, graph, visited);
             if let Some(val) = value {
-                o.insert(lowercase_label, val);
+                o.insert(label, val);
             } else {
                 warn!("Error serializing value {} at node: {:?} ({})", label, node_id, node.label);
                 return None
