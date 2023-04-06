@@ -4,11 +4,11 @@ use egui_node_graph::{DataTypeTrait, WidgetValueTrait, NodeId};
 
 use crate::{window::WindowType, ui::ComboBoxEnum};
 
-use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, inner_data_types::{surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType, density_function::DensityFunctionType, InnerDataType}};
+use super::{GraphState, Response, NodeData, blocks::BLOCK_LIST, GraphType, inner_data_types::{surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType, density_function::DensityFunctionType, InnerDataType}, node_types::NodeTemplate};
 
 
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DataType {
     Value,
     Block,
@@ -76,6 +76,16 @@ pub enum SwitchableInnerValueType {
     SurfaceRule(SurfaceRuleType),
     SurfaceRuleCondition(SurfaceRuleConditionType),
     DensityFunction(DensityFunctionType)
+}
+
+impl SwitchableInnerValueType {
+    pub fn to_NodeTemplate(&self) -> NodeTemplate {
+        match self {
+            SwitchableInnerValueType::SurfaceRule(x) => x.to_NodeTemplate(),
+            SwitchableInnerValueType::SurfaceRuleCondition(x) => x.to_NodeTemplate(),
+            SwitchableInnerValueType::DensityFunction(x) => x.to_NodeTemplate(),
+        }
+    }
 }
 
 impl Default for ValueType {

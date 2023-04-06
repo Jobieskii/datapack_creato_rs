@@ -9,6 +9,8 @@ use enum_ordinalize::Ordinalize;
 use log::warn;
 use strum::{EnumCount, EnumIter, AsRefStr};
 
+use crate::nodes::add_node;
+use crate::nodes::inner_data_types::density_function::DensityFunctionType;
 use crate::nodes::node_types::NodeTemplate;
 use crate::ui::ComboBoxEnum;
 use crate::{nodes::GraphState, app::EditorStateType};
@@ -65,6 +67,15 @@ pub enum WindowType {
     Noise
 }
 
+impl WindowType {
+    pub fn get_node_template(&self) -> NodeTemplate {
+        match self {
+            WindowType::DensityFunction => NodeTemplate::DensityFunction(DensityFunctionType::Constant),
+            WindowType::Noise => NodeTemplate::Noise,
+        }
+    }
+}
+
 impl ComboBoxEnum for WindowType{}
 
 impl Display for Window {
@@ -100,18 +111,7 @@ impl Window {
         todo!()
     }
     fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) -> NodeId{
-        let node_kind = NodeTemplate::Output(window_type);        
-        let new_node = state.graph.add_node(
-            node_kind.node_graph_label(user_state),
-            node_kind.user_data(user_state),
-            |graph, node_id| node_kind.build_node(graph, user_state, node_id),
-        );
-        state.node_positions.insert(
-            new_node,
-            Pos2::ZERO,
-        );
-        state.node_order.push(new_node);
-        new_node
+        add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::ZERO)
     }
     pub fn save_to_file(&mut self, s: String) {
         if let Some(file) = self.file.as_mut() {

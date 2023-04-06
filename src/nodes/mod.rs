@@ -6,8 +6,10 @@ pub mod inner_data_types;
 
 
 use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, NodeTemplateTrait};
-use eframe::egui;
+use eframe::{egui, epaint::Pos2};
 
+
+use crate::app::EditorStateType;
 
 use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate};
 
@@ -115,4 +117,17 @@ pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut Gra
         let new_output = graph.nodes.get(node_id).unwrap().output_ids().next().unwrap();
         graph.add_connection(new_output, old_input);
     }
+}
+pub fn add_node(state: &mut EditorStateType, user_state: &mut GraphState, template: NodeTemplate, pos: Pos2) -> NodeId{
+    let new_node = state.graph.add_node(
+        template.node_graph_label(user_state),
+        template.user_data(user_state),
+        |graph, node_id| template.build_node(graph, user_state, node_id),
+    );
+    state.node_positions.insert(
+        new_node,
+        pos,
+    );
+    state.node_order.push(new_node);
+    new_node
 }

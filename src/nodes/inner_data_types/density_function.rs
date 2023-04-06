@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use strum::{EnumIter, AsRefStr, EnumCount};
 
-use crate::{ui::ComboBoxEnum, nodes::node_types::NodeTemplate};
+use crate::{ui::ComboBoxEnum, nodes::{node_types::NodeTemplate, data_types::SwitchableInnerValueType}};
 
 use super::{InnerDataType};
 
@@ -26,5 +26,9 @@ impl ComboBoxEnum for DensityFunctionType{}
 impl InnerDataType for DensityFunctionType {
     fn to_NodeTemplate (&self) -> NodeTemplate {
         NodeTemplate::DensityFunction(*self)
+    }
+
+    fn to_SwitchableInnerValueType (&self) -> crate::nodes::data_types::SwitchableInnerValueType {
+        SwitchableInnerValueType::DensityFunction(*self)
     }
 }

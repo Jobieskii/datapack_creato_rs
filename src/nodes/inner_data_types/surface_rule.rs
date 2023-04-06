@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use strum::{EnumIter, AsRefStr, EnumCount};
 
-use crate::{ui::ComboBoxEnum, nodes::node_types::NodeTemplate};
+use crate::{ui::ComboBoxEnum, nodes::{node_types::NodeTemplate, data_types::SwitchableInnerValueType}};
 
 use super::InnerDataType;
 
@@ -24,5 +24,9 @@ impl ComboBoxEnum for SurfaceRuleType{}
 impl InnerDataType for SurfaceRuleType {
     fn to_NodeTemplate (&self) -> NodeTemplate {
         NodeTemplate::SurfaceRule(*self)
+    }
+
+    fn to_SwitchableInnerValueType (&self) -> SwitchableInnerValueType {
+        SwitchableInnerValueType::SurfaceRule(*self)
     }
 }

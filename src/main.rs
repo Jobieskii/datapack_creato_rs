@@ -7,6 +7,7 @@ mod nodes;
 mod window;
 mod ui;
 mod serializer;
+mod errors;
 
 fn main() {
     // TODO: Rather than just logging error messages, display them in the UI (global queue of messages?)

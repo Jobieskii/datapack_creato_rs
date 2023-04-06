@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
-use egui_node_graph::{NodeId, InputParam, InputId};
+use eframe::epaint::Pos2;
+use egui_node_graph::{NodeId, InputParam, InputId, Node};
 use json::{self, JsonValue, object::Object};
-use log::warn;
+use log::{warn, error};
 
-use crate::{nodes::{NodeData, GraphType, data_types::{ValueType, DataType, ComplexDataType, SwitchableInnerValueType}, blocks, node_types::NodeTemplate}, window::{WindowType, Window}};
+use crate::{nodes::{NodeData, GraphType, data_types::{ValueType, DataType, ComplexDataType, SwitchableInnerValueType}, blocks, node_types::NodeTemplate, inner_data_types::{density_function::DensityFunctionType, InnerDataType, surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType}, add_node, rebuild_node}, window::{WindowType, Window}, errors::AppError, app::App};
 impl Window {
     pub fn serialize(&self) -> Option<json::JsonValue> {
         self.serialize_inner(self.root_node, &mut HashSet::new())
@@ -60,17 +61,126 @@ impl Window {
         Some(JsonValue::Object(o))
     }
     
-    pub fn deserialize(&mut self, s: &JsonValue, window_type: WindowType, graph: &mut GraphType) {
-        match window_type {
-            WindowType::DensityFunction => {
-                todo!();
+    pub fn deserialize(&mut self, s: &JsonValue) {
+        let root_id = self.root_node;
+        let root = self.state.graph.nodes.get(root_id).unwrap();
+
+        let label = &self.state.graph.nodes.get(root_id).unwrap().inputs[0].0;
+        // If root node has only `out` input, create a new node and connect
+        if label == "out" {
+            let template = root.user_data.template;
+            let next = add_node(&mut self.state, &mut self.user_state, template, Pos2::ZERO);
+            let input_id = self.state.graph.nodes.get(root_id).unwrap().inputs[0].1;
+            let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
+            self.state.graph.add_connection(output_id, input_id);
+        } else {
+            self.deserialize_inner(s, &root_id);
+        }
+    }
+    fn deserialize_inner(&mut self, s: &JsonValue, root_id: &NodeId) {
+        let root = self.state.graph.nodes.get(*root_id).unwrap();
+        if let Some((_, entry)) = s.entries().find(|(label, _)| *label == "type") {
+            if let Ok(ValueType::InnerTypeSwitch(value_type))
+             = Self::json_value_to_value_type(entry, DataType::ValueTypeSwitcher, root.user_data.template) 
+            {
+                rebuild_node(*root_id, &mut self.state.graph, &mut self.user_state, value_type.to_NodeTemplate())
+            }
+        }
+
+        let root = self.state.graph.nodes.get(*root_id).unwrap();
+        for (entry, value) in s.entries() {
+            if let Ok(input_id) = root.get_input(entry) {
+                let input = self.state.graph.inputs.get_mut(input_id).unwrap();
+                if value.is_object() {
+                    
+                } else if value.is_array() {
+
+                } else {
+                    
+                }
+            } else {
+                error!("Wrong json data! \n{}", s);
+            }
+        }
+    }
+    /// Returns the `ValueType` variant and nothing else (complex data types must be taken care of elsewhere)
+    ///  - for List returns `ValueType::List(N)`, N = Length of json array
+    ///  - for Complex returns equivalent `ValueType`
+    ///  - TODO: for Block
+    fn json_value_to_value_type(value: &JsonValue, data_type: DataType, node_type: NodeTemplate) -> Result<ValueType, AppError> {
+        match data_type {
+            DataType::Value => {
+                let value = value.as_f32().ok_or(AppError::JsonError(json::Error::wrong_type("f32")))?;
+                Ok(ValueType::Value(value))
             },
-            WindowType::Noise => {
-                
+            DataType::Block => {
+                // TODO: internal represenation of a block needs to be rethinked.
+                todo!()
+            },
+            DataType::ValuesArray => {
+                if !value.is_array() {
+                    Err(AppError::JsonError(json::Error::wrong_type("Vec<f32>")))
+                } else {
+                    if value.members().any(|val| val.as_f32().is_none()) {
+                        Err(AppError::JsonError(json::Error::wrong_type("Vec<f32>")))
+                    } else {
+                        Ok(ValueType::ValuesArray(
+                            value.members()
+                            .filter_map(|val| val.as_f32())
+                            .collect()
+                        ))
+                    }
+                }
+            },
+            DataType::Reference(x) => {
+                let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                Ok(ValueType::Reference(x, value.to_string()))
+            },
+            DataType::ValueTypeSwitcher => {
+                let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                match node_type {
+                    NodeTemplate::DensityFunction(x) => {
+                        if let Some(typ) = DensityFunctionType::inner_data_type_from(value) {
+                            Ok(ValueType::InnerTypeSwitch(typ.to_SwitchableInnerValueType()))
+                        } else {
+                            Err(AppError::WrongData(value.to_string()))
+                        }
+                    },
+                    NodeTemplate::SurfaceRule(x) => {
+                        if let Some(typ) = SurfaceRuleType::inner_data_type_from(value) {
+                            Ok(ValueType::InnerTypeSwitch(typ.to_SwitchableInnerValueType()))
+                        } else {
+                            Err(AppError::WrongData(value.to_string()))
+                        }
+                    },
+                    NodeTemplate::SurfaceRuleCondition(x) => {
+                        if let Some(typ) = SurfaceRuleConditionType::inner_data_type_from(value) {
+                            Ok(ValueType::InnerTypeSwitch(typ.to_SwitchableInnerValueType()))
+                        } else {
+                            Err(AppError::WrongData(value.to_string()))
+                        }
+                    },
+                    //TODO: REMEMBER TO ADD ALL NEW NODE TYPES HERE IF NECESSARY
+                    _ => unimplemented!()
+                }
+            },
+            DataType::List(_) => {
+                if value.is_array() {
+                    let value = value.len();
+                    Ok(ValueType::List(value as i32))
+                } else { Err(AppError::WrongData("Arr".to_string())) }
+            },
+            DataType::Single(x) => {
+                Ok(match x {
+                    ComplexDataType::Noise => ValueType::Noise,
+                    ComplexDataType::DensityFunction => ValueType::DensityFunction,
+                    ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
+                    ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
+                })
             },
         }
     }
-    
+
     fn input_to_json_value(&self, in_id: &InputId, input: &InputParam<DataType, ValueType>, visited: &mut HashSet<NodeId>) -> Option<JsonValue>{
         let graph = &self.state.graph;
         let connected_node = graph.connection(*in_id);
