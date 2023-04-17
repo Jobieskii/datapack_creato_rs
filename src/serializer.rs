@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use eframe::epaint::Pos2;
-use egui_node_graph::{NodeId, InputParam, InputId, Node};
+use eframe::epaint::{Pos2, Vec2};
+use egui_node_graph::{NodeId, InputParam, InputId, Node, InputParamKind};
 use json::{self, JsonValue, object::Object};
 use log::{warn, error};
 
-use crate::{nodes::{NodeData, GraphType, data_types::{ValueType, DataType, ComplexDataType, SwitchableInnerValueType}, blocks, node_types::NodeTemplate, inner_data_types::{density_function::DensityFunctionType, InnerDataType, surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType}, add_node, rebuild_node}, window::{WindowType, Window}, errors::AppError, app::App};
+use crate::{nodes::{NodeData, GraphType, data_types::{ValueType, DataType, ComplexDataType, SwitchableInnerValueType, self, increase_node_list_length}, blocks, node_types::NodeTemplate, inner_data_types::{density_function::DensityFunctionType, InnerDataType, surface_rule::SurfaceRuleType, surface_rule_condition::SurfaceRuleConditionType}, add_node, rebuild_node}, window::{WindowType, Window}, errors::AppError, app::App};
 impl Window {
     pub fn serialize(&self) -> Option<json::JsonValue> {
         self.serialize_inner(self.root_node, &mut HashSet::new())
@@ -65,10 +65,10 @@ impl Window {
         let root_id = self.root_node;
         let root = self.state.graph.nodes.get(root_id).unwrap();
 
-        let label = &self.state.graph.nodes.get(root_id).unwrap().inputs[0].0;
+        let (label, input_id) = &self.state.graph.nodes.get(root_id).unwrap().inputs[0];
         // If root node has only `out` input, create a new node and connect
         if label == "out" {
-            let template = root.user_data.template;
+            let template = self.state.graph.get_input(*input_id).typ.defualt_NodeTemplate();
             let next = add_node(&mut self.state, &mut self.user_state, template, Pos2::ZERO);
             let input_id = self.state.graph.nodes.get(root_id).unwrap().inputs[0].1;
             let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
@@ -77,26 +77,74 @@ impl Window {
             self.deserialize_inner(s, &root_id);
         }
     }
-    fn deserialize_inner(&mut self, s: &JsonValue, root_id: &NodeId) {
-        let root = self.state.graph.nodes.get(*root_id).unwrap();
+    fn deserialize_inner(&mut self, s: &JsonValue, node_id: &NodeId) {
+        let root = self.state.graph.nodes.get(*node_id).unwrap();
         if let Some((_, entry)) = s.entries().find(|(label, _)| *label == "type") {
             if let Ok(ValueType::InnerTypeSwitch(value_type))
-             = Self::json_value_to_value_type(entry, DataType::ValueTypeSwitcher, root.user_data.template) 
+             = Self::json_value_to_value_type(entry, &DataType::ValueTypeSwitcher, &root.user_data.template) 
             {
-                rebuild_node(*root_id, &mut self.state.graph, &mut self.user_state, value_type.to_NodeTemplate())
+                rebuild_node(*node_id, &mut self.state.graph, &mut self.user_state, value_type.to_NodeTemplate())
             }
         }
 
-        let root = self.state.graph.nodes.get(*root_id).unwrap();
-        for (entry, value) in s.entries() {
+        let root = self.state.graph.nodes.get(*node_id).unwrap().clone();
+        let template = &root.user_data.template;
+        for (entry, json_value) in s.entries() {
             if let Ok(input_id) = root.get_input(entry) {
-                let input = self.state.graph.inputs.get_mut(input_id).unwrap();
-                if value.is_object() {
-                    
-                } else if value.is_array() {
+                let input = self.state.graph.get_input(input_id).clone();
 
-                } else {
+                if json_value.is_object() {
                     
+                    let curr_pos = *self.state.node_positions.get(*node_id).unwrap();
+                    let next = add_node(
+                        &mut self.state, 
+                        &mut self.user_state, 
+                        input.typ.defualt_NodeTemplate(), 
+                        curr_pos + Vec2::new(-5., 5.)
+                    );
+                    let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
+                    
+                    self.state.graph.add_connection(output_id, input_id);
+                    
+                    self.deserialize_inner(json_value, &next);
+                } 
+                else if json_value.is_array() {
+                    if let DataType::ValuesArray = input.typ {
+                        if let Ok(value) = Self::json_value_to_value_type(json_value, &DataType::ValuesArray, template) {
+                            let input_mut = self.state.graph.inputs.get_mut(input_id).unwrap();
+                            input_mut.value = value;
+                        }
+                    } else if let DataType::List(x) = input.typ {
+                        if let Ok(value) = Self::json_value_to_value_type(json_value, &DataType::List(x), template) {
+                            let input_mut = self.state.graph.inputs.get_mut(input_id).unwrap();
+                            input_mut.value = value;
+
+                            for item in json_value.members() {
+                                let data_type = DataType::Single(x);
+                                increase_node_list_length(&mut self.state.graph, *node_id);
+
+                                let curr_pos = *self.state.node_positions.get(*node_id).unwrap();
+
+                                let next = add_node(
+                                    &mut self.state, 
+                                    &mut self.user_state, 
+                                    data_type.defualt_NodeTemplate(), 
+                                    curr_pos + Vec2::new(-5., 5.)
+                                );
+                                let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
+                                let input_id = self.state.graph.nodes.get(*node_id).unwrap().inputs.last().unwrap().1;
+                                self.state.graph.add_connection(output_id, input_id);
+
+                                self.deserialize_inner(item, &next);
+                            }
+                        }
+                    }
+                } 
+                else {
+                    if let Ok(value) = Self::json_value_to_value_type(json_value, &input.typ, template) {
+                        let input_mut = self.state.graph.inputs.get_mut(input_id).unwrap();
+                        input_mut.value = value;
+                    }
                 }
             } else {
                 error!("Wrong json data! \n{}", s);
@@ -107,7 +155,8 @@ impl Window {
     ///  - for List returns `ValueType::List(N)`, N = Length of json array
     ///  - for Complex returns equivalent `ValueType`
     ///  - TODO: for Block
-    fn json_value_to_value_type(value: &JsonValue, data_type: DataType, node_type: NodeTemplate) -> Result<ValueType, AppError> {
+    /// This method is not recursive.
+    fn json_value_to_value_type(value: &JsonValue, data_type: &DataType, node_type: &NodeTemplate) -> Result<ValueType, AppError> {
         match data_type {
             DataType::Value => {
                 let value = value.as_f32().ok_or(AppError::JsonError(json::Error::wrong_type("f32")))?;
@@ -134,7 +183,7 @@ impl Window {
             },
             DataType::Reference(x) => {
                 let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
-                Ok(ValueType::Reference(x, value.to_string()))
+                Ok(ValueType::Reference(*x, value.to_string()))
             },
             DataType::ValueTypeSwitcher => {
                 let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
@@ -180,7 +229,7 @@ impl Window {
             },
         }
     }
-
+    /// This method recursively calls `self.serialize_inner()`.
     fn input_to_json_value(&self, in_id: &InputId, input: &InputParam<DataType, ValueType>, visited: &mut HashSet<NodeId>) -> Option<JsonValue>{
         let graph = &self.state.graph;
         let connected_node = graph.connection(*in_id);

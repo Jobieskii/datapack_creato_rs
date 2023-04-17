@@ -118,6 +118,7 @@ pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut Gra
         graph.add_connection(new_output, old_input);
     }
 }
+/// Implementation copied from the library. Shame there's no function like that there.
 pub fn add_node(state: &mut EditorStateType, user_state: &mut GraphState, template: NodeTemplate, pos: Pos2) -> NodeId{
     let new_node = state.graph.add_node(
         template.node_graph_label(user_state),

@@ -11,7 +11,7 @@
 [ ] Error messages in the Ui
 
 to think about: 
-    Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs)
-    Should windows_type be more than an enum 
+    Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs) [UX]
+    Should windows_type be more than an enum [Code]
         ( different window may want a different visualizer, 
          or maybe even editor (text instead of graph for commands) – this can also help with node picker )

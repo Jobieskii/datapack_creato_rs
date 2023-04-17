@@ -26,6 +26,41 @@ pub enum ComplexDataType {
     SurfaceRuleCondition
 }
 
+impl DataType {
+    pub fn defualt_NodeTemplate(&self) -> NodeTemplate {
+        match self {
+            DataType::Value => NodeTemplate::ConstantValue,
+            DataType::Block => NodeTemplate::ConstantBlock,
+            DataType::ValuesArray => unimplemented!(),
+            DataType::Reference(x) => NodeTemplate::Reference(*x),
+            DataType::ValueTypeSwitcher => unimplemented!(),
+            DataType::List(x) => unimplemented!(),
+            DataType::Single(x) => match x {
+                ComplexDataType::Noise => NodeTemplate::Noise,
+                ComplexDataType::DensityFunction => NodeTemplate::DensityFunction(DensityFunctionType::Constant),
+                ComplexDataType::SurfaceRule => NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
+                ComplexDataType::SurfaceRuleCondition => NodeTemplate::SurfaceRuleCondition(SurfaceRuleConditionType::YAbove),
+            },
+        }
+    }
+    pub fn default_ValueType(&self) -> ValueType {
+        match self {
+            DataType::Value => ValueType::Value(0.),
+            DataType::Block => ValueType::Block(0),
+            DataType::ValuesArray => ValueType::ValuesArray(vec![0.]),
+            DataType::Reference(x) => ValueType::Reference(*x, "".to_string()),
+            DataType::ValueTypeSwitcher => unimplemented!(),
+            DataType::List(x) => ValueType::List(1),
+            DataType::Single(x) => match x {
+                ComplexDataType::Noise => ValueType::Noise,
+                ComplexDataType::DensityFunction => ValueType::DensityFunction,
+                ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
+                ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
+            },
+        }
+    }
+}
+
 impl DataTypeTrait<GraphState> for DataType {
     fn data_type_color(&self, _user_state: &mut GraphState) -> egui::Color32 {
         match self {
@@ -79,6 +114,7 @@ pub enum SwitchableInnerValueType {
 }
 
 impl SwitchableInnerValueType {
+    /// Returns exact `NodeTemplate` for this type.
     pub fn to_NodeTemplate(&self) -> NodeTemplate {
         match self {
             SwitchableInnerValueType::SurfaceRule(x) => x.to_NodeTemplate(),
