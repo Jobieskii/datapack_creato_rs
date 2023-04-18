@@ -1,14 +1,17 @@
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs::{File, DirBuilder};
 use std::hash::Hash;
 use std::io::{Write, self, Seek, SeekFrom};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use eframe::epaint::ahash::HashMap;
 use eframe::epaint::{Vec2, Pos2};
 use egui_node_graph::{NodeTemplateTrait, NodeId, Node};
 use enum_ordinalize::Ordinalize;
 use log::warn;
 use strum::{EnumCount, EnumIter, AsRefStr};
 
+use crate::errors::AppError;
 use crate::nodes::add_node;
 use crate::nodes::inner_data_types::density_function::DensityFunctionType;
 use crate::nodes::node_types::NodeTemplate;
@@ -107,9 +110,47 @@ impl Window {
             root_node
         }
     }
-    pub fn from_file() {
-        todo!()
+    pub fn from_file(file: File, path: PathBuf, project_path: &PathBuf) -> Result<Self, AppError> {
+        match path.strip_prefix(project_path) {
+            Ok(filepath) =>  {
+                let mut components = filepath.components();
+                let namespace = components.next();
+                let filename = components.as_path().file_stem();
+                let window_type_dir = components.as_path().parent();
+                if let (Some(namespace), Some(filename), Some(window_type_dir)) = (namespace, filename, window_type_dir){
+                    if let (Some(window_type), Some(name), Some(namespace)) = (
+                        Self::window_type_from(&window_type_dir.to_path_buf()),
+                        filename.to_str(),
+                        namespace.as_os_str().to_str()
+                    ) {
+                        let mut state = EditorStateType::default();
+                        let mut user_state = GraphState::default();
+                        let root_node = Self::add_default_node(&mut state, &mut user_state, window_type);
+                        // TODO: deserialize here
+                        Ok(Self{
+                            window_type,
+                            name: name.to_string(),
+                            filepath: filepath.to_path_buf(),
+                            namespace: namespace.to_string(),
+                            file: Some(file),
+                            state,
+                            user_state,
+                            dirty: false,
+                            root_node
+                        })
+                    } else {
+                        Err(AppError::FileStructure(path.into()))
+                    }
+                } else {
+                    Err(AppError::FileStructure(path.into()))
+                }
+            }
+            Err(x) => {
+                Err(AppError::FileRead(x.to_string()))
+            }
+        }
     }
+
     fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) -> NodeId{
         add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::ZERO)
     }
@@ -129,10 +170,19 @@ impl Window {
             self.file.as_mut().unwrap().write_all(s.as_bytes());
         }
     }
+    
     fn path_from(window_type: WindowType) -> String {
         match window_type {
             WindowType::DensityFunction => "worldgen/density_function",
             WindowType::Noise => "worldgen/noise",
         }.to_string()
+    }
+    /// returns `WindowType` from the exact part of path that is distinct for it.
+    fn window_type_from(path: &PathBuf) -> Option<WindowType> {
+        match path {
+            x if x == Path::new("worldgen/density_function") => Some(WindowType::DensityFunction),
+            x if x == Path::new("worldgen/noise") => Some(WindowType::Noise),
+            _ => None
+        }
     }
 }
