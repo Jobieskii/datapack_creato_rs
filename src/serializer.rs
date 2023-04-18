@@ -67,17 +67,22 @@ impl Window {
 
         let (label, input_id) = &self.state.graph.nodes.get(root_id).unwrap().inputs[0];
         // If root node has only `out` input, create a new node and connect
-        if label == "out" {
+        if label == "output" {
             let template = self.state.graph.get_input(*input_id).typ.defualt_NodeTemplate();
-            let next = add_node(&mut self.state, &mut self.user_state, template, Pos2::ZERO);
+
+            let old_pos = self.state.node_positions.get(root_id).unwrap().clone();
+
+            let next = add_node(&mut self.state, &mut self.user_state, template, old_pos + Vec2::new(-50., 0.));
             let input_id = self.state.graph.nodes.get(root_id).unwrap().inputs[0].1;
             let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
             self.state.graph.add_connection(output_id, input_id);
+
+            self.deserialize_inner(s, &next, 0);
         } else {
-            self.deserialize_inner(s, &root_id);
+            self.deserialize_inner(s, &root_id, 0);
         }
     }
-    fn deserialize_inner(&mut self, s: &JsonValue, node_id: &NodeId) {
+    fn deserialize_inner(&mut self, s: &JsonValue, node_id: &NodeId, i: i32) {
         let root = self.state.graph.nodes.get(*node_id).unwrap();
         if let Some((_, entry)) = s.entries().find(|(label, _)| *label == "type") {
             if let Ok(ValueType::InnerTypeSwitch(value_type))
@@ -100,13 +105,13 @@ impl Window {
                         &mut self.state, 
                         &mut self.user_state, 
                         input.typ.defualt_NodeTemplate(), 
-                        curr_pos + Vec2::new(-5., 5.)
+                        curr_pos + Vec2::new(-50., 50. * i as f32)
                     );
                     let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
                     
                     self.state.graph.add_connection(output_id, input_id);
                     
-                    self.deserialize_inner(json_value, &next);
+                    self.deserialize_inner(json_value, &next, i+1);
                 } 
                 else if json_value.is_array() {
                     if let DataType::ValuesArray = input.typ {
@@ -129,13 +134,13 @@ impl Window {
                                     &mut self.state, 
                                     &mut self.user_state, 
                                     data_type.defualt_NodeTemplate(), 
-                                    curr_pos + Vec2::new(-5., 5.)
+                                    curr_pos + Vec2::new(-50., 50.)
                                 );
                                 let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
                                 let input_id = self.state.graph.nodes.get(*node_id).unwrap().inputs.last().unwrap().1;
                                 self.state.graph.add_connection(output_id, input_id);
 
-                                self.deserialize_inner(item, &next);
+                                self.deserialize_inner(item, &next, i+1);
                             }
                         }
                     }
@@ -155,6 +160,7 @@ impl Window {
     ///  - for List returns `ValueType::List(N)`, N = Length of json array
     ///  - for Complex returns equivalent `ValueType`
     ///  - TODO: for Block
+    /// 
     /// This method is not recursive.
     fn json_value_to_value_type(value: &JsonValue, data_type: &DataType, node_type: &NodeTemplate) -> Result<ValueType, AppError> {
         match data_type {
@@ -210,7 +216,7 @@ impl Window {
                         }
                     },
                     //TODO: REMEMBER TO ADD ALL NEW NODE TYPES HERE IF NECESSARY
-                    _ => unimplemented!()
+                    _ => unimplemented!("{:?}", node_type)
                 }
             },
             DataType::List(_) => {

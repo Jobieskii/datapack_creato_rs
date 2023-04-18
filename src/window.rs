@@ -126,7 +126,7 @@ impl Window {
                         let mut state = EditorStateType::default();
                         let mut user_state = GraphState::default();
                         let root_node = Self::add_default_node(&mut state, &mut user_state, window_type);
-                        // TODO: deserialize here
+
                         Ok(Self{
                             window_type,
                             name: name.to_string(),
@@ -152,23 +152,24 @@ impl Window {
     }
 
     fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) -> NodeId{
-        add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::ZERO)
+        add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::new(400., 200.))
     }
-    pub fn save_to_file(&mut self, s: String) {
+    pub fn save_to_file(&mut self, s: String) -> Result<(), std::io::Error>{
         if let Some(file) = self.file.as_mut() {
-            file.set_len(0);
-            file.seek(SeekFrom::Start(0));
-            file.write_all(s.as_bytes());
+            file.set_len(0)?;
+            file.seek(SeekFrom::Start(0))?;
+            file.write_all(s.as_bytes())?;
         } else {
             let mut dir = self.filepath.clone();
             dir.pop();
             DirBuilder::new()
                 .recursive(true)
-                .create(dir);
+                .create(dir)?;
 
             self.file = Some(File::create(&self.filepath).unwrap());
-            self.file.as_mut().unwrap().write_all(s.as_bytes());
+            self.file.as_mut().unwrap().write_all(s.as_bytes())?;
         }
+        Ok(())
     }
     
     fn path_from(window_type: WindowType) -> String {

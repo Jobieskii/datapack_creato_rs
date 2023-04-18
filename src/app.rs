@@ -1,5 +1,9 @@
 
 use std::collections::HashMap;
+use std::fs;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
@@ -11,6 +15,7 @@ use log::error;
 use log::info;
 use log::warn;
 use strum::EnumCount;
+use walkdir::WalkDir;
 
 
 use crate::nodes::rebuild_node;
@@ -69,7 +74,39 @@ pub struct App<'a>{
 }
 impl App<'_>{
     pub fn new<'a>(_cc: &eframe::CreationContext, project_path: PathBuf) -> Self {
-        let map: [HashMap<Identifier, Window>; WindowType::COUNT] = [HashMap::<>::new(), HashMap::<>::new()];
+        let mut map: [HashMap<Identifier, Window>; WindowType::COUNT] = [HashMap::<>::new(), HashMap::<>::new()];
+
+        for entry in WalkDir::new(&project_path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok()) {
+                let f_name = entry.file_name().to_string_lossy();
+                if f_name.ends_with(".json") {
+                    if let Ok(file) = OpenOptions::new().read(true).write(true).open(entry.path()) {
+                        let new_window = Window::from_file(
+                            file, 
+                            entry.path().to_path_buf(), 
+                            &project_path
+                        );
+                        match new_window {
+                            Ok(mut window) => {
+                                let mut buf = String::new();
+                                window.file.as_ref().unwrap().read_to_string(&mut buf);
+                                if let Ok(json) = json::parse(&buf) {
+                                    window.deserialize(&json);
+                                }
+                                map[window.window_type as usize].insert(
+                                    Identifier::new(window.namespace.clone(), window.name.clone(), window.window_type),
+                                    window);
+                            },
+                            Err(e) => error!("{}", e.to_string())
+                        }
+                    } else {
+                        error!("fs error: {}", entry.path().display());
+                    }
+                }
+            }
+
         Self {
             file_structure: map,
             active_window: None,
@@ -82,7 +119,9 @@ impl App<'_>{
             for window in filetype_map.values_mut() {
                 info!("Serializing window {}", window);
                 if let Some(json) = window.serialize() {
-                    window.save_to_file(json.pretty(4));
+                    if let Err(e) = window.save_to_file(json.pretty(4)) {
+                        error!("failed to save to file: {} ({})", e, window.filepath.display())
+                    }
                 } else {
                     error!("Window failed to serialize {}", window)
                 }
