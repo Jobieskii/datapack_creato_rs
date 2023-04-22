@@ -1,8 +1,9 @@
 [?] Serialize with serde to special project file / folder
-[ ] Serialize and deserialize from json datapack format
+[x|?] Serialize and deserialize from json datapack format
     [x] Serialize
-    [ ] deserialize
-        [ ] auto pack nodes in graph (HOWWW?)
+    [x] deserialize
+        [x] auto pack nodes in graph (HOWWW?)
+            [ ] tweak automatic positioning
     [ ] try on minecraft data
 [ ] Visualisation
     [ ] ...

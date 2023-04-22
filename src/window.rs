@@ -152,7 +152,7 @@ impl Window {
     }
 
     fn add_default_node(state: &mut EditorStateType, user_state: &mut GraphState, window_type: WindowType) -> NodeId{
-        add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::new(400., 200.))
+        add_node(state, user_state, NodeTemplate::Output(window_type), Pos2::new(600., 200.))
     }
     pub fn save_to_file(&mut self, s: String) -> Result<(), std::io::Error>{
         if let Some(file) = self.file.as_mut() {

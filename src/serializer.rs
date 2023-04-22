@@ -65,24 +65,29 @@ impl Window {
         let root_id = self.root_node;
         let root = self.state.graph.nodes.get(root_id).unwrap();
 
+        let rightmost_pos = self.state.node_positions.get(root_id).unwrap().clone();
+        let mut leftmost_vec = rightmost_pos.to_vec2();
+
         let (label, input_id) = &self.state.graph.nodes.get(root_id).unwrap().inputs[0];
+
         // If root node has only `out` input, create a new node and connect
         if label == "output" {
             let template = self.state.graph.get_input(*input_id).typ.defualt_NodeTemplate();
 
-            let old_pos = self.state.node_positions.get(root_id).unwrap().clone();
+            
 
-            let next = add_node(&mut self.state, &mut self.user_state, template, old_pos + Vec2::new(-50., 0.));
+            let next = add_node(&mut self.state, &mut self.user_state, template, rightmost_pos + Vec2::new(-250., 0.));
             let input_id = self.state.graph.nodes.get(root_id).unwrap().inputs[0].1;
             let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
             self.state.graph.add_connection(output_id, input_id);
 
-            self.deserialize_inner(s, &next, 0);
+            leftmost_vec = self.deserialize_inner(s, &next);
         } else {
-            self.deserialize_inner(s, &root_id, 0);
+            leftmost_vec = self.deserialize_inner(s, &root_id);
         }
+        self.state.pan_zoom.pan = (rightmost_pos.to_vec2() + leftmost_vec) / 2.0
     }
-    fn deserialize_inner(&mut self, s: &JsonValue, node_id: &NodeId, i: i32) {
+    fn deserialize_inner(&mut self, s: &JsonValue, node_id: &NodeId) -> Vec2 {
         let root = self.state.graph.nodes.get(*node_id).unwrap();
         if let Some((_, entry)) = s.entries().find(|(label, _)| *label == "type") {
             if let Ok(ValueType::InnerTypeSwitch(value_type))
@@ -92,9 +97,11 @@ impl Window {
             }
         }
 
+        let mut leftmost_vec = self.state.node_positions.get(*node_id).unwrap().to_vec2();
+
         let root = self.state.graph.nodes.get(*node_id).unwrap().clone();
         let template = &root.user_data.template;
-        for (entry, json_value) in s.entries() {
+        for (i,(entry, json_value)) in s.entries().filter(|(label, _)| *label != "type").enumerate() {
             if let Ok(input_id) = root.get_input(entry) {
                 let input = self.state.graph.get_input(input_id).clone();
 
@@ -105,13 +112,17 @@ impl Window {
                         &mut self.state, 
                         &mut self.user_state, 
                         input.typ.defualt_NodeTemplate(), 
-                        curr_pos + Vec2::new(-50., 50. * i as f32)
+                        curr_pos + Vec2::new(-250., 200. * i as f32)
                     );
+                    
                     let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
                     
                     self.state.graph.add_connection(output_id, input_id);
                     
-                    self.deserialize_inner(json_value, &next, i+1);
+                    let new_vec = self.deserialize_inner(json_value, &next);
+                    if new_vec.x < leftmost_vec.x {
+                        leftmost_vec = new_vec;
+                    }
                 } 
                 else if json_value.is_array() {
                     if let DataType::ValuesArray = input.typ {
@@ -134,13 +145,16 @@ impl Window {
                                     &mut self.state, 
                                     &mut self.user_state, 
                                     data_type.defualt_NodeTemplate(), 
-                                    curr_pos + Vec2::new(-50., 50.)
+                                    curr_pos + Vec2::new(-250., 200. * i as f32)
                                 );
                                 let output_id = self.state.graph.nodes.get(next).unwrap().outputs.last().unwrap().1;
                                 let input_id = self.state.graph.nodes.get(*node_id).unwrap().inputs.last().unwrap().1;
                                 self.state.graph.add_connection(output_id, input_id);
 
-                                self.deserialize_inner(item, &next, i+1);
+                                let new_vec = self.deserialize_inner(item, &next);
+                                if new_vec.x < leftmost_vec.x {
+                                    leftmost_vec = new_vec;
+                                }
                             }
                         }
                     }
@@ -153,9 +167,11 @@ impl Window {
                 }
             } else {
                 error!("Wrong json data! \n{}", s);
-            }
+            }   
         }
+        leftmost_vec
     }
+    
     /// Returns the `ValueType` variant and nothing else (complex data types must be taken care of elsewhere)
     ///  - for List returns `ValueType::List(N)`, N = Length of json array
     ///  - for Complex returns equivalent `ValueType`
