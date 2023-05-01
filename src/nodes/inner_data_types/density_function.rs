@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
-use strum::{EnumIter, AsRefStr, EnumCount};
+use strum::{AsRefStr, EnumCount, EnumIter};
 
-use crate::{ui::ComboBoxEnum, nodes::{node_types::NodeTemplate, data_types::SwitchableInnerValueType}};
+use crate::nodes::{data_types::SwitchableInnerValueType, node_types::NodeTemplate};
+use crate::ui::ComboBoxEnum;
 
-use super::{InnerDataType};
+use super::InnerDataType;
 
 #[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq)]
 #[strum(serialize_all = "snake_case")]
@@ -21,14 +22,14 @@ impl Display for DensityFunctionType {
     }
 }
 
-impl ComboBoxEnum for DensityFunctionType{}
+impl ComboBoxEnum for DensityFunctionType {}
 
 impl InnerDataType for DensityFunctionType {
-    fn to_NodeTemplate (&self) -> NodeTemplate {
+    fn to_NodeTemplate(&self) -> NodeTemplate {
         NodeTemplate::DensityFunction(*self)
     }
 
-    fn to_SwitchableInnerValueType (&self) -> crate::nodes::data_types::SwitchableInnerValueType {
+    fn to_SwitchableInnerValueType(&self) -> crate::nodes::data_types::SwitchableInnerValueType {
         SwitchableInnerValueType::DensityFunction(*self)
     }
 }

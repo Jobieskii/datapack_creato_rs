@@ -1,4 +1,4 @@
-#![feature(once_cell)] 
+// #![feature(once_cell)] 
 use app::App;
 use std::path::PathBuf;
 use simple_logger::SimpleLogger;

@@ -6,7 +6,7 @@ pub enum AppError {
     WrongData(String),
     JsonError(json::Error),
     FileRead(String),
-    FileStructure(Box<Path>)
+    FileStructure(Box<Path>),
 }
 
 impl Display for AppError {
@@ -15,7 +15,7 @@ impl Display for AppError {
             AppError::WrongData(x) => write!(f, "Wrong data: {}", x),
             AppError::JsonError(x) => x.fmt(f),
             AppError::FileRead(x) => write!(f, "File Read: {}", x),
-            AppError::FileStructure(x) => write!(f, "File structure: {}", x.display())
+            AppError::FileStructure(x) => write!(f, "File structure: {}", x.display()),
         }
     }
 }

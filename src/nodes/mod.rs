@@ -1,24 +1,25 @@
-
-pub mod data_types;
-pub mod node_types;
 pub mod blocks;
+pub mod data_types;
 pub mod inner_data_types;
+pub mod node_types;
 
-
-use egui_node_graph::{self, NodeId, Graph, NodeDataTrait, UserResponseTrait, NodeResponse, NodeTemplateTrait};
 use eframe::{egui, epaint::Pos2};
-
+use egui_node_graph::{
+    self, Graph, NodeDataTrait, NodeId, NodeResponse, NodeTemplateTrait, UserResponseTrait,
+};
 
 use crate::app::EditorStateType;
 
-use self::{data_types::{DataType, ValueType}, node_types::NodeTemplate};
-
+use self::{
+    data_types::{DataType, ValueType},
+    node_types::NodeTemplate,
+};
 
 pub type GraphType = Graph<NodeData, DataType, ValueType>;
 
 #[derive(Clone, Copy)]
 pub struct NodeData {
-    pub template: NodeTemplate
+    pub template: NodeTemplate,
 }
 
 impl NodeDataTrait for NodeData {
@@ -35,7 +36,8 @@ impl NodeDataTrait for NodeData {
         user_state: &mut Self::UserState,
     ) -> Vec<egui_node_graph::NodeResponse<Self::Response, Self>>
     where
-        Response: egui_node_graph::UserResponseTrait {
+        Response: egui_node_graph::UserResponseTrait,
+    {
         let mut responses = vec![];
         let is_active = user_state
             .active_node
@@ -46,9 +48,9 @@ impl NodeDataTrait for NodeData {
                 responses.push(NodeResponse::User(Response::SetActiveNode(node_id)));
             }
         } else {
-            let button = egui::Button::new(
-                egui::RichText::new("active").color(egui::Color32::BLACK)
-            ).fill(egui::Color32::GOLD);
+            let button =
+                egui::Button::new(egui::RichText::new("active").color(egui::Color32::BLACK))
+                    .fill(egui::Color32::GOLD);
             if ui.add(button).clicked() {
                 responses.push(NodeResponse::User(Response::ClearActiveNode));
             }
@@ -68,12 +70,12 @@ impl NodeDataTrait for NodeData {
 
     fn can_delete(
         &self,
-        node_id: NodeId,
-        graph: &Graph<Self, Self::DataType, Self::ValueType>,
+        _node_id: NodeId,
+        _graph: &Graph<Self, Self::DataType, Self::ValueType>,
         _user_state: &mut Self::UserState,
     ) -> bool {
         if let NodeTemplate::Output(_) = self.template {
-            return false
+            return false;
         }
         true
     }
@@ -85,27 +87,34 @@ pub enum Response {
     ClearActiveNode,
     IncreaseInputs(NodeId),
     DecreaseInputs(NodeId),
-    ChangeNodeType(NodeId, NodeTemplate)
+    ChangeNodeType(NodeId, NodeTemplate),
 }
-impl UserResponseTrait for Response {
-
-}
+impl UserResponseTrait for Response {}
 #[derive(Clone)]
 pub struct GraphState {
     pub active_node: Option<NodeId>,
 }
 impl Default for GraphState {
     fn default() -> Self {
-        Self { 
-            active_node: Default::default()
+        Self {
+            active_node: Default::default(),
         }
     }
 }
 /// rebuilds node in place. Keeps output connection.
-pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut GraphState, template: NodeTemplate) {
+pub fn rebuild_node(
+    node_id: NodeId,
+    graph: &mut GraphType,
+    user_state: &mut GraphState,
+    template: NodeTemplate,
+) {
     let node = graph.nodes.get(node_id).unwrap().clone();
     let old_ouput = node.output_ids().next().unwrap();
-    let old_input_opt = graph.connections.iter().find(|(_, &o)| o == old_ouput).map(|(i, o)| i); 
+    let old_input_opt = graph
+        .connections
+        .iter()
+        .find(|(_, &o)| o == old_ouput)
+        .map(|(i, _o)| i);
     node.input_ids().for_each(|x| graph.remove_input_param(x));
     node.output_ids().for_each(|x| graph.remove_output_param(x));
 
@@ -114,21 +123,29 @@ pub fn rebuild_node(node_id: NodeId, graph: &mut GraphType, user_state: &mut Gra
     node.user_data.template = template;
     node.label = template.node_graph_label(user_state);
     if let Some(old_input) = old_input_opt {
-        let new_output = graph.nodes.get(node_id).unwrap().output_ids().next().unwrap();
+        let new_output = graph
+            .nodes
+            .get(node_id)
+            .unwrap()
+            .output_ids()
+            .next()
+            .unwrap();
         graph.add_connection(new_output, old_input);
     }
 }
 /// Implementation copied from the library. Shame there's no function like that there.
-pub fn add_node(state: &mut EditorStateType, user_state: &mut GraphState, template: NodeTemplate, pos: Pos2) -> NodeId{
+pub fn add_node(
+    state: &mut EditorStateType,
+    user_state: &mut GraphState,
+    template: NodeTemplate,
+    pos: Pos2,
+) -> NodeId {
     let new_node = state.graph.add_node(
         template.node_graph_label(user_state),
         template.user_data(user_state),
         |graph, node_id| template.build_node(graph, user_state, node_id),
     );
-    state.node_positions.insert(
-        new_node,
-        pos,
-    );
+    state.node_positions.insert(new_node, pos);
     state.node_order.push(new_node);
     new_node
 }

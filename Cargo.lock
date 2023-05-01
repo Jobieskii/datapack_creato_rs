@@ -378,6 +378,7 @@ dependencies = [
  "egui_node_graph",
  "enum-ordinalize",
  "json",
+ "lazy_static",
  "log",
  "simple_logger",
  "strum",

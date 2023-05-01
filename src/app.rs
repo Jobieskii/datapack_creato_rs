@@ -1,32 +1,24 @@
-
 use std::collections::HashMap;
-use std::fs;
-use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::LazyLock;
 
-use eframe::egui;
-use eframe::egui::Button;
-use eframe::egui::TextEdit;
+use eframe::egui::{self, Button, TextEdit};
 use egui_node_graph::{GraphEditorState, NodeResponse};
-use log::error;
-use log::info;
-use log::warn;
+use log::{error, info, warn};
 use strum::EnumCount;
 use walkdir::WalkDir;
 
+use crate::nodes::{
+    data_types::{decrease_node_list_length, increase_node_list_length, DataType, ValueType},
+    node_types::{AllNodeTemplates, NodeTemplate},
+    rebuild_node, GraphState, NodeData, Response,
+};
+use crate::ui::{ComboBoxEnum, NewWindowPrompt};
+use crate::window::{Window, WindowType};
 
-use crate::nodes::rebuild_node;
-use crate::window::WindowType;
-use crate::nodes::data_types::decrease_node_list_length;
-use crate::nodes::data_types::increase_node_list_length;
-use crate::ui::ComboBoxEnum;
-use crate::ui::NewWindowPrompt;
-use crate::{nodes::{NodeData, data_types::{DataType, ValueType}, node_types::{NodeTemplate, AllNodeTemplates}, GraphState, Response}, window::Window};
-
-pub type EditorStateType = GraphEditorState<NodeData, DataType, ValueType, NodeTemplate, GraphState>;
+pub type EditorStateType =
+    GraphEditorState<NodeData, DataType, ValueType, NodeTemplate, GraphState>;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Identifier {
@@ -36,11 +28,19 @@ pub struct Identifier {
 }
 impl Identifier {
     pub fn new(namespace: String, path: String, window_type: WindowType) -> Self {
-        Self {namespace, path, window_type}
+        Self {
+            namespace,
+            path,
+            window_type,
+        }
     }
     pub fn from_string(s: String, window_type: WindowType) -> Option<Self> {
         if let Some((namespace, path)) = s.split_once(":") {
-            Some(Self {namespace: String::from(namespace), path: String::from(path), window_type})
+            Some(Self {
+                namespace: String::from(namespace),
+                path: String::from(path),
+                window_type,
+            })
         } else {
             None
         }
@@ -66,61 +66,71 @@ impl PartialOrd for Identifier {
     }
 }
 
-pub struct App<'a>{  
+pub struct App<'a> {
     active_window: Option<&'a mut Window>,
     new_window_prompt: NewWindowPrompt,
     file_structure: [HashMap<Identifier, Window>; WindowType::COUNT],
-    project_path: PathBuf 
+    project_path: PathBuf,
 }
-impl App<'_>{
+impl App<'_> {
     pub fn new<'a>(_cc: &eframe::CreationContext, project_path: PathBuf) -> Self {
-        let mut map: [HashMap<Identifier, Window>; WindowType::COUNT] = [HashMap::<>::new(), HashMap::<>::new()];
+        let mut map: [HashMap<Identifier, Window>; WindowType::COUNT] =
+            [HashMap::new(), HashMap::new()];
 
         for entry in WalkDir::new(&project_path)
             .follow_links(true)
             .into_iter()
-            .filter_map(|e| e.ok()) {
-                let f_name = entry.file_name().to_string_lossy();
-                if f_name.ends_with(".json") {
-                    if let Ok(file) = OpenOptions::new().read(true).write(true).open(entry.path()) {
-                        let new_window = Window::from_file(
-                            file, 
-                            entry.path().to_path_buf(), 
-                            &project_path
-                        );
-                        match new_window {
-                            Ok(mut window) => {
-                                let mut buf = String::new();
-                                window.file.as_ref().unwrap().read_to_string(&mut buf);
-                                if let Ok(json) = json::parse(&buf) {
-                                    window.deserialize(&json);
-                                }
-                                map[window.window_type as usize].insert(
-                                    Identifier::new(window.namespace.clone(), window.name.clone(), window.window_type),
-                                    window);
-                            },
-                            Err(e) => error!("{}", e.to_string())
+            .filter_map(|e| e.ok())
+        {
+            let f_name = entry.file_name().to_string_lossy();
+            if f_name.ends_with(".json") {
+                if let Ok(file) = OpenOptions::new().read(true).write(true).open(entry.path()) {
+                    let new_window =
+                        Window::from_file(file, entry.path().to_path_buf(), &project_path);
+                    match new_window {
+                        Ok(mut window) => {
+                            let mut buf = String::new();
+                            if let Err(e) = window.file.as_ref().unwrap().read_to_string(&mut buf) {
+                                warn!("{}", e);
+                            };
+                            if let Ok(json) = json::parse(&buf) {
+                                window.deserialize(&json);
+                            }
+                            map[window.window_type as usize].insert(
+                                Identifier::new(
+                                    window.namespace.clone(),
+                                    window.name.clone(),
+                                    window.window_type,
+                                ),
+                                window,
+                            );
                         }
-                    } else {
-                        error!("fs error: {}", entry.path().display());
+                        Err(e) => error!("{}", e.to_string()),
                     }
+                } else {
+                    error!("fs error: {}", entry.path().display());
                 }
             }
+        }
 
         Self {
             file_structure: map,
             active_window: None,
             new_window_prompt: NewWindowPrompt::new(),
-            project_path
+            project_path,
         }
     }
-    fn serialize_all(&mut self) -> Result<(), ()>{
+    fn serialize_all(&mut self) -> Result<(), ()> {
         for filetype_map in self.file_structure.iter_mut() {
             for window in filetype_map.values_mut() {
                 info!("Serializing window {}", window);
                 if let Some(json) = window.serialize() {
                     if let Err(e) = window.save_to_file(json.pretty(4)) {
-                        error!("failed to save to file: {} ({})", e, window.filepath.display())
+                        error!(
+                            "failed to save to file: {} ({})",
+                            e,
+                            window.filepath.display()
+                        )
                     }
                 } else {
                     error!("Window failed to serialize {}", window)
@@ -147,8 +157,8 @@ impl eframe::App for App<'_> {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
                 ui.vertical_centered_justified(|ui| {
                     if ui.button("[ + ]").clicked() {
-                            self.new_window_prompt.show = !self.new_window_prompt.show;
-                        }
+                        self.new_window_prompt.show = !self.new_window_prompt.show;
+                    }
                 });
                 let mut should_open = self.new_window_prompt.show;
                 let inner_resp = egui::Window::new("New file")
@@ -162,14 +172,27 @@ impl eframe::App for App<'_> {
                                 WindowType::show_ui(ui, &mut self.new_window_prompt.window_type);
                             });
                         //ui.horizontal_centered(|ui| {
-                            ui.add(TextEdit::singleline(&mut self.new_window_prompt.namespace).hint_text("namespace"));
-                            ui.label(":");
-                            ui.add(TextEdit::singleline(&mut self.new_window_prompt.name).hint_text("path"));
+                        ui.add(
+                            TextEdit::singleline(&mut self.new_window_prompt.namespace)
+                                .hint_text("namespace"),
+                        );
+                        ui.label(":");
+                        ui.add(
+                            TextEdit::singleline(&mut self.new_window_prompt.name)
+                                .hint_text("path"),
+                        );
                         //});
                         let enable = self.new_window_prompt.are_strings_correct();
                         if ui.add_enabled(enable, Button::new("Add file")).clicked() {
                             let win = self.new_window_prompt.make_window(&self.project_path);
-                            self.file_structure[win.window_type as usize].insert(Identifier::new(win.namespace.clone(), win.name.clone(), win.window_type), win);
+                            self.file_structure[win.window_type as usize].insert(
+                                Identifier::new(
+                                    win.namespace.clone(),
+                                    win.name.clone(),
+                                    win.window_type,
+                                ),
+                                win,
+                            );
                             self.new_window_prompt.reset();
                             true
                         } else {
@@ -181,14 +204,17 @@ impl eframe::App for App<'_> {
                 }
                 self.new_window_prompt.show = should_open;
 
-                for (i, map) in &mut self.file_structure.iter_mut().enumerate(){
+                for (i, map) in &mut self.file_structure.iter_mut().enumerate() {
                     if !map.is_empty() {
                         ui.group(|ui| {
                             ui.label(WindowType::from_ordinal(i as i8).unwrap().as_ref());
                             let mut v: Vec<(&Identifier, &mut Window)> = map.iter_mut().collect();
-                            v.sort_unstable_by(|(id, _), (id2, _)| {id.partial_cmp(id2).unwrap()});
-                            for (id, win) in v {
-                                if ui.button(format!("{}:{}", &*win.namespace, &*win.name)).clicked() {
+                            v.sort_unstable_by(|(id, _), (id2, _)| id.partial_cmp(id2).unwrap());
+                            for (_id, win) in v {
+                                if ui
+                                    .button(format!("{}:{}", &*win.namespace, &*win.name))
+                                    .clicked()
+                                {
                                     self.active_window = Some(win);
                                 }
                             }
@@ -199,22 +225,31 @@ impl eframe::App for App<'_> {
         });
         if let Some(window) = &mut self.active_window {
             let graph_response = egui::CentralPanel::default()
-            .show(ctx, |ui| {
-                window.state.draw_graph_editor(ui, AllNodeTemplates, &mut window.user_state)
-            }).inner;
+                .show(ctx, |ui| {
+                    window
+                        .state
+                        .draw_graph_editor(ui, AllNodeTemplates, &mut window.user_state)
+                })
+                .inner;
 
             for node_response in graph_response.node_responses {
                 if let NodeResponse::User(user_event) = node_response {
                     match user_event {
-                        Response::SetActiveNode(node_id) => window.user_state.active_node = Some(node_id),
+                        Response::SetActiveNode(node_id) => {
+                            window.user_state.active_node = Some(node_id)
+                        }
                         Response::ClearActiveNode => window.user_state.active_node = None,
-                        Response::IncreaseInputs(node_id) => increase_node_list_length(&mut window.state.graph, node_id),
-                        Response::DecreaseInputs(node_id) => decrease_node_list_length(&mut window.state.graph, node_id),
+                        Response::IncreaseInputs(node_id) => {
+                            increase_node_list_length(&mut window.state.graph, node_id)
+                        }
+                        Response::DecreaseInputs(node_id) => {
+                            decrease_node_list_length(&mut window.state.graph, node_id)
+                        }
                         Response::ChangeNodeType(node_id, new_template) => rebuild_node(
-                            node_id, 
-                            &mut window.state.graph, 
-                            &mut window.user_state, 
-                            new_template
+                            node_id,
+                            &mut window.state.graph,
+                            &mut window.user_state,
+                            new_template,
                         ),
                     }
                 }

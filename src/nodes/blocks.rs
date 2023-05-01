@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use lazy_static::lazy_static;
 
 use eframe::epaint::Color32;
 
@@ -8,9 +8,8 @@ pub struct Block {
     pub color: Color32
 }
 //TODO: should be a map???
-pub fn default_block_list() -> Vec<&'static Block> {
-    vec![
-        &Block{id:"minecraft:dirt", color: Color32::BROWN }
-    ]
+lazy_static! {
+    pub static ref BLOCK_LIST: Vec<Block> = {
+        vec![Block{id:"minecraft:dirt", color: Color32::BROWN }]
+    };
 }
-pub static BLOCK_LIST: LazyLock<Vec<&Block>> = LazyLock::new(default_block_list);

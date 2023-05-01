@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
-use strum::{EnumIter, AsRefStr, EnumCount};
+use strum::{AsRefStr, EnumCount, EnumIter};
 
-use crate::{ui::ComboBoxEnum, nodes::{node_types::NodeTemplate, data_types::SwitchableInnerValueType}};
+use crate::nodes::{data_types::SwitchableInnerValueType, node_types::NodeTemplate};
+use crate::ui::ComboBoxEnum;
 
 use super::InnerDataType;
 
@@ -12,21 +13,21 @@ pub enum SurfaceRuleType {
     Bandlands,
     Block,
     Sequence,
-    Condition
+    Condition,
 }
 impl Display for SurfaceRuleType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} (Surface Rule)", self)
     }
 }
-impl ComboBoxEnum for SurfaceRuleType{}
+impl ComboBoxEnum for SurfaceRuleType {}
 
 impl InnerDataType for SurfaceRuleType {
-    fn to_NodeTemplate (&self) -> NodeTemplate {
+    fn to_NodeTemplate(&self) -> NodeTemplate {
         NodeTemplate::SurfaceRule(*self)
     }
 
-    fn to_SwitchableInnerValueType (&self) -> SwitchableInnerValueType {
+    fn to_SwitchableInnerValueType(&self) -> SwitchableInnerValueType {
         SwitchableInnerValueType::SurfaceRule(*self)
     }
 }
