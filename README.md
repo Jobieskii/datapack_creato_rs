@@ -6,6 +6,11 @@ GUI program for creating minecraft datapacks using a node based UI.
 
 `$ cargo run`
 
+# Goals
+I hope to create an application that's easy to use and readable when creating. 
+I decided that when I was knee deep in long json files that existing solutions didn't help with enough. 
+A big goal is to have clear and efficient visualsations for worldgen datapacks.
+
 # Usage
 Simply launch the application, open a folder path, and start creating. The different '.json' files are sorted based on type, 
 namespace and name on the left, where you can create new files with the `[ + ]` button (note, they are not saved until `save all` 
