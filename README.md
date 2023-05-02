@@ -2,6 +2,8 @@
 
 GUI program for creating minecraft datapacks using a node based UI.
 
+![screenshot](example_images/example.png)
+
 **Currently not yet useable, but can be tried out by compiling with rust.**
 
 `$ cargo run`
