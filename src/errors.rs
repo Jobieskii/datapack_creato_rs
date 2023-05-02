@@ -3,7 +3,7 @@ use std::{error, fmt::Display, path::Path};
 #[derive(Debug)]
 // TODO: Move all error types here as this will be used when displaying errors in ui
 pub enum AppError {
-    WrongData(String),
+    WrongData(Box<str>),
     JsonError(json::Error),
     FileRead(String),
     FileStructure(Box<Path>),

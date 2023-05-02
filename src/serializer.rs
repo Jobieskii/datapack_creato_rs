@@ -1,11 +1,14 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use eframe::epaint::Vec2;
 use egui_node_graph::{InputId, InputParam, NodeId};
 use json::{self, object::Object, JsonValue};
 use log::{error, warn};
 
+use crate::app::App;
 use crate::errors::AppError;
+use crate::nodes::inner_data_types::density_function::WeirdScaledSampleRarityValueMapper;
 use crate::nodes::{
     add_node, blocks,
     data_types::{
@@ -292,9 +295,11 @@ impl Window {
                 Ok(ValueType::Reference(*x, value.to_string()))
             }
             DataType::ValueTypeSwitcher => {
-                let value = value
+                let value_string = value
                     .as_str()
-                    .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?
+                    .to_string();
+                let value = value_string.strip_prefix("minecraft:").unwrap_or(&value_string);
                 match node_type {
                     NodeTemplate::DensityFunction(_x) => {
                         if let Some(typ) = DensityFunctionType::inner_data_type_from(value) {
@@ -302,7 +307,7 @@ impl Window {
                                 typ.to_SwitchableInnerValueType(),
                             ))
                         } else {
-                            Err(AppError::WrongData(value.to_string()))
+                            Err(AppError::WrongData(value.into()))
                         }
                     }
                     NodeTemplate::SurfaceRule(_x) => {
@@ -311,7 +316,7 @@ impl Window {
                                 typ.to_SwitchableInnerValueType(),
                             ))
                         } else {
-                            Err(AppError::WrongData(value.to_string()))
+                            Err(AppError::WrongData(value.into()))
                         }
                     }
                     NodeTemplate::SurfaceRuleCondition(_x) => {
@@ -320,7 +325,7 @@ impl Window {
                                 typ.to_SwitchableInnerValueType(),
                             ))
                         } else {
-                            Err(AppError::WrongData(value.to_string()))
+                            Err(AppError::WrongData(value.into()))
                         }
                     }
                     //TODO: REMEMBER TO ADD ALL NEW NODE TYPES HERE IF NECESSARY
@@ -332,7 +337,7 @@ impl Window {
                     let value = value.len();
                     Ok(ValueType::List(value as i32))
                 } else {
-                    Err(AppError::WrongData("Arr".to_string()))
+                    Err(AppError::WrongData("Arr".into()))
                 }
             }
             DataType::Single(x) => Ok(match x {
@@ -341,6 +346,17 @@ impl Window {
                 ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
                 ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
             }),
+            DataType::Integer => {
+                let value = value
+                    .as_i32()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("f32")))?;
+                Ok(ValueType::Integer(value))
+            },
+            DataType::WeirdScaledSampleRarityValueMapper => {
+                let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                let value = WeirdScaledSampleRarityValueMapper::from_str(value).map_err(|e| AppError::WrongData(value.into()))?;
+                Ok(ValueType::WeirdScaledSampleRarityValueMapper(value))
+            },
         }
     }
     /// This method recursively calls `self.serialize_inner()`.
@@ -396,7 +412,7 @@ impl Window {
                             SwitchableInnerValueType::SurfaceRuleCondition(y) => y.as_ref(),
                             SwitchableInnerValueType::DensityFunction(y) => y.as_ref(),
                         };
-                        Some(JsonValue::String(val.to_string()))
+                        Some(JsonValue::String("minecraft:".to_string() + val))
                     } else {
                         None
                     }
@@ -408,6 +424,20 @@ impl Window {
                         None
                     }
                 }
+                DataType::Integer => {
+                    if let ValueType::Integer(x) = input.value() {
+                        Some(JsonValue::from(*x))
+                    } else {
+                        None
+                    }
+                },
+                DataType::WeirdScaledSampleRarityValueMapper => {
+                    if let ValueType::WeirdScaledSampleRarityValueMapper(x) = input.value() {
+                        Some(JsonValue::String(x.as_ref().to_string()))
+                    } else {
+                        None
+                    }
+                },
             }
         }
     }

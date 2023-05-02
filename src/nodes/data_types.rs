@@ -3,9 +3,11 @@ use eframe::epaint::Color32;
 use egui_node_graph::{DataTypeTrait, NodeId, WidgetValueTrait};
 use std::borrow::Cow;
 
+use crate::ui::ComboBoxEnum;
 use crate::window::WindowType;
 
 use super::blocks::BLOCK_LIST;
+use super::inner_data_types::density_function;
 use super::inner_data_types::{
     density_function::DensityFunctionType, surface_rule::SurfaceRuleType,
     surface_rule_condition::SurfaceRuleConditionType, InnerDataType,
@@ -16,10 +18,12 @@ use super::{GraphState, GraphType, NodeData, Response};
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DataType {
     Value,
+    Integer,
     Block,
     ValuesArray,
     Reference(WindowType),
     ValueTypeSwitcher,
+    WeirdScaledSampleRarityValueMapper,
     List(ComplexDataType),
     Single(ComplexDataType),
 }
@@ -53,6 +57,8 @@ impl DataType {
                     NodeTemplate::SurfaceRuleCondition(SurfaceRuleConditionType::YAbove)
                 }
             },
+            DataType::WeirdScaledSampleRarityValueMapper => unimplemented!(),
+            DataType::Integer => unimplemented!()
         }
     }
     #[allow(non_snake_case)]
@@ -70,6 +76,8 @@ impl DataType {
                 ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
                 ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
             },
+            DataType::WeirdScaledSampleRarityValueMapper => ValueType::WeirdScaledSampleRarityValueMapper(density_function::WeirdScaledSampleRarityValueMapper::Type1),
+            DataType::Integer => ValueType::Integer(0),
         }
     }
 }
@@ -104,20 +112,25 @@ impl DataTypeTrait<GraphState> for DataType {
             }
             DataType::List(x) => Cow::Owned(format!("list ({})", DataType::Single(*x).name())),
             DataType::ValueTypeSwitcher => Cow::Borrowed("value type switcher"),
+            DataType::WeirdScaledSampleRarityValueMapper => Cow::Borrowed("rarity value mapper"),
+            DataType::Integer => Cow::Borrowed("integer value"),
         }
     }
 }
 type BlockId = usize;
 #[derive(Clone)]
 pub enum ValueType {
+    // TODO: allow specifing min-max value
     Value(f32),
     ValuesArray(Vec<f32>),
+    Integer(i32),
     Block(BlockId),
     Noise,
     DensityFunction,
     Reference(WindowType, String),
     SurfaceRule,
     SurfaceRuleCondition,
+    WeirdScaledSampleRarityValueMapper(density_function::WeirdScaledSampleRarityValueMapper),
     List(i32),
     InnerTypeSwitch(SwitchableInnerValueType),
 }
@@ -167,6 +180,12 @@ impl WidgetValueTrait for ValueType {
                     ui.add(DragValue::new(x));
                 });
             }
+            ValueType::Integer(x) => {
+                ui.horizontal(|ui| {
+                    ui.label(param_name);
+                    ui.add(DragValue::new(x));
+                });
+            }
             ValueType::Block(x) => {
                 ui.horizontal(|ui| {
                     ComboBox::from_label(param_name)
@@ -192,7 +211,8 @@ impl WidgetValueTrait for ValueType {
                 });
             }
             ValueType::Reference(window_type, id) => {
-                ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(param_name);
                     //TODO: add autocompletion here somehow
                     ui.text_edit_singleline(id);
                 });
@@ -222,6 +242,15 @@ impl WidgetValueTrait for ValueType {
                 SwitchableInnerValueType::DensityFunction(x) => {
                     switcher_widget(x, ui, param_name, &mut ret, node_id)
                 }
+            },
+            ValueType::WeirdScaledSampleRarityValueMapper(x) => {
+                ui.horizontal(|ui| {
+                    ComboBox::from_label(param_name)
+                        .selected_text(x.as_ref())
+                        .show_ui(ui, |ui| {
+                            density_function::WeirdScaledSampleRarityValueMapper::show_ui(ui, x)
+                        })
+                });
             },
             _ => {
                 ui.horizontal(|ui| {

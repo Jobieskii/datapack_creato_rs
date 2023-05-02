@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use egui_node_graph::{InputParamKind, NodeId, NodeTemplateIter, NodeTemplateTrait};
 
-use crate::window::WindowType;
+use crate::{window::WindowType, nodes::inner_data_types::density_function::WeirdScaledSampleRarityValueMapper};
 
 use super::{
     data_types::{ComplexDataType, DataType, SwitchableInnerValueType, ValueType},
@@ -76,6 +76,16 @@ impl NodeTemplateTrait for NodeTemplate {
         };
         let output_value = |graph: &mut GraphType, name: &str| {
             graph.add_output_param(node_id, name.to_string(), DataType::Value);
+        };
+        let input_int = |graph: &mut GraphType, name: &str| {
+            graph.add_input_param(
+                node_id,
+                name.to_string(),
+                DataType::Integer,
+                ValueType::Integer(0),
+                InputParamKind::ConstantOnly,
+                true,
+            );
         };
         let input_block = |graph: &mut GraphType, name: &str, kind: InputParamKind| {
             graph.add_input_param(
@@ -173,22 +183,81 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::DensityFunction(x) => {
                 output_df(graph, "out");
                 input_type_switch(graph, SwitchableInnerValueType::DensityFunction(*x));
+                use DensityFunctionType::*;
                 match x {
-                    DensityFunctionType::Add => {
+                    Interpolated | FlatCache | Cache2d | CacheOnce | CacheAllInCell => {
+                        input_df(graph, "argument");
+                    }
+                    Abs | Square | Cube | HalfNegative | QuarterNegative | Squeeze => {
+                        input_df(graph, "argument");
+                    }
+                    Add | Mul | Min | Max => {
                         input_df(graph, "argument1");
                         input_df(graph, "argument2");
                     }
-                    DensityFunctionType::Constant => {
+                    BlendAlpha | BlendOffset | Beardifier | EndIslands => {},
+                    BlendDensity => {
+                        input_df(graph, "argument");
+                    }
+                    Constant => {
                         input_value(graph, "argument", InputParamKind::ConstantOnly);
                     }
-                    DensityFunctionType::Mul => {
-                        input_df(graph, "argument1");
-                        input_df(graph, "argument2");
+                    OldBlendedNoise => {
+                        input_value(graph, "xz_scale", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "y_scale", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "xz_factor", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "y_factor", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "smear_scale_multiplier", InputParamKind::ConnectionOrConstant);
                     }
-                    DensityFunctionType::Noise => {
-                        input_noise(graph, "noise");
-                        input_value(graph, "XZ scale", InputParamKind::ConnectionOrConstant);
+                    Noise => {
+                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_value(graph, "xz_scale", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "y_scale", InputParamKind::ConnectionOrConstant);
+                    }
+                    WeirdScaledSampler => {
+                        graph.add_input_param(
+                            node_id,
+                            String::from("rarity_value_mapper"),
+                            DataType::WeirdScaledSampleRarityValueMapper,
+                            ValueType::WeirdScaledSampleRarityValueMapper(WeirdScaledSampleRarityValueMapper::Type1),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_df(graph, "input");
+                    }
+                    ShiftedNoise => {
+                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_value(graph, "xz_scale", InputParamKind::ConnectionOrConstant);
                         input_value(graph, "Y scale", InputParamKind::ConnectionOrConstant);
+                        input_df(graph, "shift_x");
+                        input_df(graph, "shift_y");
+                        input_df(graph, "shift_z");
+                    }
+                    RangeChoice => {
+                        input_df(graph, "input");
+                        input_value(graph, "min_inclusive", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "max_inclusive", InputParamKind::ConnectionOrConstant);
+                        input_df(graph, "when_in_range");
+                        input_df(graph, "when_out_of_range");
+                    }
+                    ShiftA | ShiftB | Shift => {
+                        input_reference(graph, "argument", InputParamKind::ConnectionOrConstant, &WindowType::Noise);
+                    }
+                    Clamp => {
+                        input_df(graph, "input");
+                        input_value(graph, "min", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "max", InputParamKind::ConnectionOrConstant);
+                    }
+                    Spline => {
+                        todo!("Splines are a lot of work, huh");
+                    }
+                    YClampedGradient => {
+                        input_int(graph, "from_y");
+                        input_int(graph, "to_y");
+                        input_value(graph, "from_value", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "to_value", InputParamKind::ConnectionOrConstant);
+
                     }
                 }
             }

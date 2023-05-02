@@ -12,7 +12,10 @@
 [ ] Error messages in the Ui
 
 to think about: 
-    Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs) [UX]
+    ~~Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs) [UX]~~
+        – No, one datapack is one whole project. This is important when thinking about 
+        visualisations – references must be followed which would require loading them in.
+
     Should windows_type be more than an enum [Code]
         ( different window may want a different visualizer, 
          or maybe even editor (text instead of graph for commands) – this can also help with node picker )
