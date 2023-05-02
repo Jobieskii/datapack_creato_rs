@@ -13,13 +13,13 @@ fn main() {
     // TODO: Rather than just logging error messages, display them in the UI (global queue of messages?)
     SimpleLogger::new().init().unwrap();
     let native_options = eframe::NativeOptions::default();
-    let path = std::env::args().nth(1).unwrap_or(String::new());
+    let path = std::env::args().nth(1).map(|s| PathBuf::from(s));
     eframe::run_native(
         "Datapack creato(rs)", 
         native_options, 
         Box::new(
             |cc| {
-                Box::new(App::new(cc, PathBuf::from(path)))
+                Box::new(App::new(cc, path))
             }
         )
     );

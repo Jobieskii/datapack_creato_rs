@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use eframe::egui::Ui;
+use eframe::egui::{Button, Response, Ui};
 use strum::IntoEnumIterator;
 
 use crate::window::{Window, WindowType};
@@ -34,9 +34,9 @@ impl NewWindowPrompt {
             && self.namespace.is_ascii()
             && self.name.is_ascii()
     }
-    pub fn new() -> Self {
+    pub fn new(show: bool) -> Self {
         Self {
-            show: true,
+            show,
             namespace: String::new(),
             name: String::new(),
             window_type: WindowType::DensityFunction,
@@ -45,5 +45,38 @@ impl NewWindowPrompt {
     pub fn reset(&mut self) {
         self.namespace.clear();
         self.name.clear();
+    }
+}
+
+pub struct OpenProjectPrompt {
+    pub show: bool,
+    pub path: String,
+    // TODO: project creation with name, description, version
+}
+impl OpenProjectPrompt {
+    pub fn new(show: bool) -> Self {
+        Self {
+            show,
+            path: String::new(),
+        }
+    }
+    pub fn ui_entered(&mut self, ui: &mut Ui) -> bool {
+        ui.label("Open project folder");
+        ui.horizontal(|ui| {
+            ui.text_edit_singleline(&mut self.path);
+            if ui.small_button("find").clicked() {
+                if let Some(path) = tinyfiledialogs::select_folder_dialog("Project Path", "") {
+                    self.path = path;
+                }
+            }
+        });
+        if ui
+            .add_enabled(!self.path.is_empty(), Button::new("load"))
+            .clicked()
+        {
+            true
+        } else {
+            false
+        }
     }
 }
