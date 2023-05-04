@@ -3,7 +3,6 @@ use std::fmt::Display;
 use strum::{AsRefStr, EnumCount, EnumIter};
 use strum_macros::EnumString;
 
-use crate::errors::AppError;
 use crate::nodes::{data_types::SwitchableInnerValueType, node_types::NodeTemplate};
 use crate::ui::ComboBoxEnum;
 
@@ -15,6 +14,7 @@ pub enum DensityFunctionType {
     // maker function
     Interpolated,
     FlatCache,
+    #[strum(serialize = "cache_2d")]
     Cache2d,
     CacheOnce,
     CacheAllInCell,
@@ -47,7 +47,7 @@ pub enum DensityFunctionType {
     Clamp,
     Spline,
     Constant,
-    YClampedGradient
+    YClampedGradient,
 }
 impl Display for DensityFunctionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -72,7 +72,7 @@ pub enum WeirdScaledSampleRarityValueMapper {
     #[strum(serialize = "type_1")]
     Type1,
     #[strum(serialize = "type_2")]
-    Type2
+    Type2,
 }
 
 impl ComboBoxEnum for WeirdScaledSampleRarityValueMapper {}

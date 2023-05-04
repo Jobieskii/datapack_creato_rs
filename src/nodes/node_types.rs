@@ -2,7 +2,12 @@ use std::borrow::Cow;
 
 use egui_node_graph::{InputParamKind, NodeId, NodeTemplateIter, NodeTemplateTrait};
 
-use crate::{window::WindowType, nodes::inner_data_types::density_function::WeirdScaledSampleRarityValueMapper};
+use crate::{
+    nodes::inner_data_types::{
+        density_function::WeirdScaledSampleRarityValueMapper, surface_rule_condition,
+    },
+    window::WindowType,
+};
 
 use super::{
     data_types::{ComplexDataType, DataType, SwitchableInnerValueType, ValueType},
@@ -42,7 +47,7 @@ impl NodeTemplateTrait for NodeTemplate {
             NodeTemplate::Reference(x) => Cow::Owned(format!("Reference ({})", x.as_ref())),
             NodeTemplate::Output(x) => Cow::Owned(format!("Output ({})", x.as_ref())),
             NodeTemplate::SurfaceRule(_) => Cow::Borrowed("Surface Rule"),
-            NodeTemplate::SurfaceRuleCondition(x) => Cow::Owned(x.to_string()),
+            NodeTemplate::SurfaceRuleCondition(_) => Cow::Borrowed("Surface Rule Condition"),
         }
     }
 
@@ -83,6 +88,16 @@ impl NodeTemplateTrait for NodeTemplate {
                 name.to_string(),
                 DataType::Integer,
                 ValueType::Integer(0),
+                InputParamKind::ConstantOnly,
+                true,
+            );
+        };
+        let input_bool = |graph: &mut GraphType, name: &str| {
+            graph.add_input_param(
+                node_id,
+                name.to_string(),
+                DataType::Bool,
+                ValueType::Bool(false),
                 InputParamKind::ConstantOnly,
                 true,
             );
@@ -165,6 +180,23 @@ impl NodeTemplateTrait for NodeTemplate {
                 true,
             );
         };
+        let input_biome = |graph: &mut GraphType, name: &str, kind: InputParamKind| {
+            graph.add_input_param(
+                node_id,
+                name.to_string(),
+                DataType::Single(ComplexDataType::Biome),
+                ValueType::Biome,
+                kind,
+                true,
+            );
+        };
+        let output_biome = |graph: &mut GraphType, name: &str| {
+            graph.add_output_param(
+                node_id,
+                name.to_string(),
+                DataType::Single(ComplexDataType::Biome),
+            );
+        };
         //TODO: Make sure label wording matches JSON
         match self {
             NodeTemplate::ConstantValue => {
@@ -195,7 +227,7 @@ impl NodeTemplateTrait for NodeTemplate {
                         input_df(graph, "argument1");
                         input_df(graph, "argument2");
                     }
-                    BlendAlpha | BlendOffset | Beardifier | EndIslands => {},
+                    BlendAlpha | BlendOffset | Beardifier | EndIslands => {}
                     BlendDensity => {
                         input_df(graph, "argument");
                     }
@@ -207,10 +239,19 @@ impl NodeTemplateTrait for NodeTemplate {
                         input_value(graph, "y_scale", InputParamKind::ConnectionOrConstant);
                         input_value(graph, "xz_factor", InputParamKind::ConnectionOrConstant);
                         input_value(graph, "y_factor", InputParamKind::ConnectionOrConstant);
-                        input_value(graph, "smear_scale_multiplier", InputParamKind::ConnectionOrConstant);
+                        input_value(
+                            graph,
+                            "smear_scale_multiplier",
+                            InputParamKind::ConnectionOrConstant,
+                        );
                     }
                     Noise => {
-                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_reference(
+                            graph,
+                            "noise",
+                            InputParamKind::ConstantOnly,
+                            &WindowType::Noise,
+                        );
                         input_value(graph, "xz_scale", InputParamKind::ConnectionOrConstant);
                         input_value(graph, "y_scale", InputParamKind::ConnectionOrConstant);
                     }
@@ -219,17 +260,29 @@ impl NodeTemplateTrait for NodeTemplate {
                             node_id,
                             String::from("rarity_value_mapper"),
                             DataType::WeirdScaledSampleRarityValueMapper,
-                            ValueType::WeirdScaledSampleRarityValueMapper(WeirdScaledSampleRarityValueMapper::Type1),
+                            ValueType::WeirdScaledSampleRarityValueMapper(
+                                WeirdScaledSampleRarityValueMapper::Type1,
+                            ),
                             InputParamKind::ConstantOnly,
                             true,
                         );
-                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_reference(
+                            graph,
+                            "noise",
+                            InputParamKind::ConstantOnly,
+                            &WindowType::Noise,
+                        );
                         input_df(graph, "input");
                     }
                     ShiftedNoise => {
-                        input_reference(graph, "noise", InputParamKind::ConstantOnly, &WindowType::Noise);
+                        input_reference(
+                            graph,
+                            "noise",
+                            InputParamKind::ConstantOnly,
+                            &WindowType::Noise,
+                        );
                         input_value(graph, "xz_scale", InputParamKind::ConnectionOrConstant);
-                        input_value(graph, "Y scale", InputParamKind::ConnectionOrConstant);
+                        input_value(graph, "y_scale", InputParamKind::ConnectionOrConstant);
                         input_df(graph, "shift_x");
                         input_df(graph, "shift_y");
                         input_df(graph, "shift_z");
@@ -242,7 +295,12 @@ impl NodeTemplateTrait for NodeTemplate {
                         input_df(graph, "when_out_of_range");
                     }
                     ShiftA | ShiftB | Shift => {
-                        input_reference(graph, "argument", InputParamKind::ConnectionOrConstant, &WindowType::Noise);
+                        input_reference(
+                            graph,
+                            "argument",
+                            InputParamKind::ConnectionOrConstant,
+                            &WindowType::Noise,
+                        );
                     }
                     Clamp => {
                         input_df(graph, "input");
@@ -257,7 +315,6 @@ impl NodeTemplateTrait for NodeTemplate {
                         input_int(graph, "to_y");
                         input_value(graph, "from_value", InputParamKind::ConnectionOrConstant);
                         input_value(graph, "to_value", InputParamKind::ConnectionOrConstant);
-
                     }
                 }
             }
@@ -272,6 +329,7 @@ impl NodeTemplateTrait for NodeTemplate {
                 match x {
                     WindowType::DensityFunction => output_df(graph, "out"),
                     WindowType::Noise => output_noise(graph, "out"),
+                    WindowType::Biome => output_biome(graph, "out"),
                 }
             }
             NodeTemplate::Output(x) => match x {
@@ -282,6 +340,7 @@ impl NodeTemplateTrait for NodeTemplate {
                     input_value(graph, "firstOctave", InputParamKind::ConstantOnly);
                     input_values_arr(graph, "amplitudes");
                 }
+                WindowType::Biome => todo!(),
             },
             NodeTemplate::SurfaceRule(x) => {
                 graph.add_output_param(
@@ -290,9 +349,10 @@ impl NodeTemplateTrait for NodeTemplate {
                     DataType::Single(ComplexDataType::SurfaceRule),
                 );
                 input_type_switch(graph, SwitchableInnerValueType::SurfaceRule(*x));
+                use SurfaceRuleType::*;
                 match x {
-                    SurfaceRuleType::Bandlands => {}
-                    SurfaceRuleType::Block => {
+                    Bandlands => {}
+                    Block => {
                         graph.add_input_param(
                             node_id,
                             "result_state".to_string(),
@@ -302,7 +362,7 @@ impl NodeTemplateTrait for NodeTemplate {
                             true,
                         );
                     }
-                    SurfaceRuleType::Sequence => {
+                    Sequence => {
                         graph.add_input_param(
                             node_id,
                             "sequence".to_string(),
@@ -320,7 +380,7 @@ impl NodeTemplateTrait for NodeTemplate {
                             true,
                         );
                     }
-                    SurfaceRuleType::Condition => {
+                    Condition => {
                         graph.add_input_param(
                             node_id,
                             "if true".to_string(),
@@ -346,18 +406,106 @@ impl NodeTemplateTrait for NodeTemplate {
                     "out".to_string(),
                     DataType::Single(ComplexDataType::SurfaceRuleCondition),
                 );
+                input_type_switch(graph, SwitchableInnerValueType::SurfaceRuleCondition(*x));
+                use SurfaceRuleConditionType::*;
                 match x {
-                    SurfaceRuleConditionType::Biome => todo!(),
-                    SurfaceRuleConditionType::NoiseThreshold => todo!(),
-                    SurfaceRuleConditionType::VerticalGradient => todo!(),
-                    SurfaceRuleConditionType::YAbove => todo!(),
-                    SurfaceRuleConditionType::Water => todo!(),
-                    SurfaceRuleConditionType::Temperature => todo!(),
-                    SurfaceRuleConditionType::Steep => todo!(),
-                    SurfaceRuleConditionType::Not => todo!(),
-                    SurfaceRuleConditionType::Hole => todo!(),
-                    SurfaceRuleConditionType::AbovePreliminarySurface => todo!(),
-                    SurfaceRuleConditionType::StoneDepth => todo!(),
+                    Biome => {
+                        graph.add_input_param(
+                            node_id,
+                            "biome_is".to_string(),
+                            DataType::List(ComplexDataType::Biome),
+                            ValueType::List(1),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                        input_biome(graph, "", InputParamKind::ConnectionOnly);
+                    }
+                    NoiseThreshold => {
+                        input_reference(
+                            graph,
+                            "noise",
+                            InputParamKind::ConnectionOrConstant,
+                            &WindowType::Noise,
+                        );
+                        input_value(graph, "min_threshold", InputParamKind::ConstantOnly);
+                        input_value(graph, "max_threshold", InputParamKind::ConstantOnly);
+                    }
+                    VerticalGradient => {
+                        graph.add_input_param(
+                            node_id,
+                            "random_name".to_string(),
+                            DataType::DullReference,
+                            ValueType::DullReference(String::new()),
+                            InputParamKind::ConnectionOrConstant,
+                            true,
+                        );
+                        graph.add_input_param(
+                            node_id,
+                            "true_at_and_below".to_string(),
+                            DataType::VerticalAnchor,
+                            ValueType::VerticalAnchor(
+                                surface_rule_condition::VerticalAnchor::Absolute,
+                                0,
+                            ),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                        graph.add_input_param(
+                            node_id,
+                            "false_at_and_above".to_string(),
+                            DataType::VerticalAnchor,
+                            ValueType::VerticalAnchor(
+                                surface_rule_condition::VerticalAnchor::Absolute,
+                                0,
+                            ),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                    }
+                    YAbove => {
+                        graph.add_input_param(
+                            node_id,
+                            "anchor".to_string(),
+                            DataType::VerticalAnchor,
+                            ValueType::VerticalAnchor(
+                                surface_rule_condition::VerticalAnchor::Absolute,
+                                0,
+                            ),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                        input_int(graph, "surface_depth_multiplier");
+                        input_bool(graph, "add_stone_depth");
+                    }
+                    Water => {
+                        input_int(graph, "offset");
+                        input_int(graph, "surface_depth_multiplier");
+                        input_bool(graph, "add_stone_depth");
+                    }
+                    Temperature | Steep | Hole | AbovePreliminarySurface => {}
+                    Not => {
+                        graph.add_input_param(
+                            node_id,
+                            "invert".to_string(),
+                            DataType::Single(ComplexDataType::SurfaceRuleCondition),
+                            ValueType::SurfaceRuleCondition,
+                            InputParamKind::ConnectionOnly,
+                            true,
+                        );
+                    }
+                    StoneDepth => {
+                        input_int(graph, "offset");
+                        input_bool(graph, "add_surface_depth");
+                        input_int(graph, "secondary_depth_range");
+                        graph.add_input_param(
+                            node_id,
+                            "surface_type".to_string(),
+                            DataType::SurfaceType,
+                            ValueType::SurfaceType(surface_rule_condition::SurfaceType::Ceiling),
+                            InputParamKind::ConstantOnly,
+                            true,
+                        );
+                    }
                 }
             }
         }
@@ -375,6 +523,7 @@ impl NodeTemplateIter for AllNodeTemplates {
             NodeTemplate::ConstantBlock,
             NodeTemplate::DensityFunction(DensityFunctionType::Constant),
             NodeTemplate::SurfaceRule(SurfaceRuleType::Sequence),
+            NodeTemplate::SurfaceRuleCondition(SurfaceRuleConditionType::VerticalGradient),
             NodeTemplate::Noise,
             NodeTemplate::Reference(WindowType::DensityFunction),
             NodeTemplate::Reference(WindowType::Noise),

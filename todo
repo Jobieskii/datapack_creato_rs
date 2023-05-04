@@ -11,6 +11,7 @@
 [x] ask for folder when app starts (without command line argument)
 [ ] Error messages in the Ui
 [ ] undo / redo
+[ ] tooltips
 
 to think about: 
     ~~Shouldn't windows be read in / saved one at a time like a text editor? (with open tabs) [UX]~~

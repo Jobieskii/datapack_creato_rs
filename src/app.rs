@@ -79,7 +79,7 @@ pub struct App<'a> {
 impl App<'_> {
     pub fn new<'a>(_cc: &eframe::CreationContext, project_path_option: Option<PathBuf>) -> Self {
         let mut map: [HashMap<Identifier, Window>; WindowType::COUNT] =
-            [HashMap::new(), HashMap::new()];
+            [HashMap::new(), HashMap::new(), HashMap::new()];
         if let Some(project_path) = &project_path_option {
             Self::load_from_fs(project_path, &mut map);
         }
@@ -260,10 +260,10 @@ impl eframe::App for App<'_> {
                         }
                         Response::ClearActiveNode => window.user_state.active_node = None,
                         Response::IncreaseInputs(node_id) => {
-                            increase_node_list_length(&mut window.state.graph, node_id)
+                            increase_node_list_length(&mut window.state.graph, node_id);
                         }
                         Response::DecreaseInputs(node_id) => {
-                            decrease_node_list_length(&mut window.state.graph, node_id)
+                            decrease_node_list_length(&mut window.state.graph, node_id);
                         }
                         Response::ChangeNodeType(node_id, new_template) => rebuild_node(
                             node_id,
@@ -271,6 +271,15 @@ impl eframe::App for App<'_> {
                             &mut window.user_state,
                             new_template,
                         ),
+                        Response::ChangeInputLabel(node_id, from, to) => {
+                            if let Some(node) = window.state.graph.nodes.get_mut(node_id) {
+                                if let Some(mut m) =
+                                    node.inputs.iter_mut().find(|(s, _)| s == &*from)
+                                {
+                                    m.0 = to.to_string();
+                                }
+                            }
+                        }
                     }
                 }
             }

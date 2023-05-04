@@ -5,7 +5,7 @@ pub mod node_types;
 
 use eframe::{egui, epaint::Pos2};
 use egui_node_graph::{
-    self, Graph, NodeDataTrait, NodeId, NodeResponse, NodeTemplateTrait, UserResponseTrait,
+    self, Graph, NodeDataTrait, NodeId, NodeResponse, NodeTemplateTrait, UserResponseTrait, InputId,
 };
 
 use crate::app::EditorStateType;
@@ -81,13 +81,14 @@ impl NodeDataTrait for NodeData {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Response {
     SetActiveNode(NodeId),
     ClearActiveNode,
     IncreaseInputs(NodeId),
     DecreaseInputs(NodeId),
     ChangeNodeType(NodeId, NodeTemplate),
+    ChangeInputLabel(NodeId, Box<str>, Box<str>)
 }
 impl UserResponseTrait for Response {}
 #[derive(Clone)]

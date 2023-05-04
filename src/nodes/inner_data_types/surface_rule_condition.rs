@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use strum::{AsRefStr, EnumCount, EnumIter};
+use strum::{AsRefStr, EnumCount, EnumIter, EnumString};
 
 use crate::nodes::{data_types::SwitchableInnerValueType, node_types::NodeTemplate};
 use crate::ui::ComboBoxEnum;
@@ -39,3 +39,20 @@ impl InnerDataType for SurfaceRuleConditionType {
         SwitchableInnerValueType::SurfaceRuleCondition(*self)
     }
 }
+
+#[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq, EnumString)]
+pub enum VerticalAnchor {
+    Absolute,
+    AboveBottom,
+    BelowTop
+}
+
+impl ComboBoxEnum for VerticalAnchor {}
+
+#[derive(Copy, Clone, Debug, EnumIter, AsRefStr, EnumCount, PartialEq, EnumString)]
+pub enum SurfaceType {
+    Floor,
+    Ceiling
+}
+
+impl ComboBoxEnum for SurfaceType {}

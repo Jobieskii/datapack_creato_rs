@@ -9,6 +9,7 @@ use log::{error, warn};
 use crate::app::App;
 use crate::errors::AppError;
 use crate::nodes::inner_data_types::density_function::WeirdScaledSampleRarityValueMapper;
+use crate::nodes::inner_data_types::surface_rule_condition::{SurfaceType, VerticalAnchor};
 use crate::nodes::{
     add_node, blocks,
     data_types::{
@@ -98,7 +99,8 @@ impl Window {
                 .graph
                 .get_input(*input_id)
                 .typ
-                .defualt_NodeTemplate();
+                .defualt_NodeTemplate()
+                .unwrap();
 
             let next = add_node(
                 &mut self.state,
@@ -154,12 +156,12 @@ impl Window {
             if let Ok(input_id) = root.get_input(entry) {
                 let input = self.state.graph.get_input(input_id).clone();
 
-                if json_value.is_object() {
+                if json_value.is_object() && input.typ.defualt_NodeTemplate().is_some() {
                     let curr_pos = *self.state.node_positions.get(*node_id).unwrap();
                     let next = add_node(
                         &mut self.state,
                         &mut self.user_state,
-                        input.typ.defualt_NodeTemplate(),
+                        input.typ.defualt_NodeTemplate().unwrap(),
                         curr_pos + Vec2::new(-250., 200. * i as f32),
                     );
 
@@ -198,42 +200,49 @@ impl Window {
                             input_mut.value = value;
 
                             for item in json_value.members() {
+                                let new_input_id =
+                                    increase_node_list_length(&mut self.state.graph, *node_id);
                                 let data_type = DataType::Single(x);
-                                increase_node_list_length(&mut self.state.graph, *node_id);
 
-                                let curr_pos = *self.state.node_positions.get(*node_id).unwrap();
+                                if item.is_object() && data_type.defualt_NodeTemplate().is_some() {
+                                    let curr_pos =
+                                        *self.state.node_positions.get(*node_id).unwrap();
 
-                                let next = add_node(
-                                    &mut self.state,
-                                    &mut self.user_state,
-                                    data_type.defualt_NodeTemplate(),
-                                    curr_pos + Vec2::new(-250., 200. * i as f32),
-                                );
-                                let output_id = self
-                                    .state
-                                    .graph
-                                    .nodes
-                                    .get(next)
-                                    .unwrap()
-                                    .outputs
-                                    .last()
-                                    .unwrap()
-                                    .1;
-                                let input_id = self
-                                    .state
-                                    .graph
-                                    .nodes
-                                    .get(*node_id)
-                                    .unwrap()
-                                    .inputs
-                                    .last()
-                                    .unwrap()
-                                    .1;
-                                self.state.graph.add_connection(output_id, input_id);
+                                    let next = add_node(
+                                        &mut self.state,
+                                        &mut self.user_state,
+                                        data_type.defualt_NodeTemplate().unwrap(),
+                                        curr_pos + Vec2::new(-250., 200. * i as f32),
+                                    );
+                                    let output_id = self
+                                        .state
+                                        .graph
+                                        .nodes
+                                        .get(next)
+                                        .unwrap()
+                                        .outputs
+                                        .last()
+                                        .unwrap()
+                                        .1;
+                                    self.state.graph.add_connection(output_id, new_input_id);
 
-                                let new_vec = self.deserialize_inner(item, &next);
-                                if new_vec.x < leftmost_vec.x {
-                                    leftmost_vec = new_vec;
+                                    let new_vec = self.deserialize_inner(item, &next);
+                                    if new_vec.x < leftmost_vec.x {
+                                        leftmost_vec = new_vec;
+                                    }
+                                } else {
+                                    match Self::json_value_to_value_type(item, &data_type, template)
+                                    {
+                                        Ok(value_type) => {
+                                            self.state
+                                                .graph
+                                                .inputs
+                                                .get_mut(new_input_id)
+                                                .unwrap()
+                                                .value = value_type
+                                        }
+                                        Err(e) => error!("{}", e),
+                                    }
                                 }
                             }
                         }
@@ -299,7 +308,9 @@ impl Window {
                     .as_str()
                     .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?
                     .to_string();
-                let value = value_string.strip_prefix("minecraft:").unwrap_or(&value_string);
+                let value = value_string
+                    .strip_prefix("minecraft:")
+                    .unwrap_or(&value_string);
                 match node_type {
                     NodeTemplate::DensityFunction(_x) => {
                         if let Some(typ) = DensityFunctionType::inner_data_type_from(value) {
@@ -345,18 +356,54 @@ impl Window {
                 ComplexDataType::DensityFunction => ValueType::DensityFunction,
                 ComplexDataType::SurfaceRule => ValueType::SurfaceRule,
                 ComplexDataType::SurfaceRuleCondition => ValueType::SurfaceRuleCondition,
+                ComplexDataType::Biome => ValueType::Biome,
             }),
             DataType::Integer => {
                 let value = value
                     .as_i32()
                     .ok_or(AppError::JsonError(json::Error::wrong_type("f32")))?;
                 Ok(ValueType::Integer(value))
-            },
+            }
             DataType::WeirdScaledSampleRarityValueMapper => {
-                let value = value.as_str().ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
-                let value = WeirdScaledSampleRarityValueMapper::from_str(value).map_err(|e| AppError::WrongData(value.into()))?;
+                let value = value
+                    .as_str()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                let value = WeirdScaledSampleRarityValueMapper::from_str(value)
+                    .map_err(|e| AppError::WrongData(value.into()))?;
                 Ok(ValueType::WeirdScaledSampleRarityValueMapper(value))
-            },
+            }
+            DataType::Bool => {
+                let value = value
+                    .as_bool()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("bool")))?;
+                Ok(ValueType::Bool(value))
+            }
+            DataType::DullReference => {
+                let value = value
+                    .as_str()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                Ok(ValueType::DullReference(value.to_string()))
+            }
+            DataType::VerticalAnchor => {
+                let (key, json_value) = value
+                    .entries()
+                    .next()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("obj")))?;
+                let label =
+                    VerticalAnchor::from_str(key).map_err(|e| AppError::WrongData(key.into()))?;
+                let value = json_value
+                    .as_i32()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("i32")))?;
+                Ok(ValueType::VerticalAnchor(label, value))
+            }
+            DataType::SurfaceType => {
+                let value = value
+                    .as_str()
+                    .ok_or(AppError::JsonError(json::Error::wrong_type("str")))?;
+                let value =
+                    SurfaceType::from_str(value).map_err(|e| AppError::WrongData(value.into()))?;
+                Ok(ValueType::SurfaceType(value))
+            }
         }
     }
     /// This method recursively calls `self.serialize_inner()`.
@@ -430,14 +477,44 @@ impl Window {
                     } else {
                         None
                     }
-                },
+                }
                 DataType::WeirdScaledSampleRarityValueMapper => {
                     if let ValueType::WeirdScaledSampleRarityValueMapper(x) = input.value() {
                         Some(JsonValue::String(x.as_ref().to_string()))
                     } else {
                         None
                     }
-                },
+                }
+                DataType::Bool => {
+                    if let ValueType::Bool(x) = input.value() {
+                        Some(JsonValue::Boolean(*x))
+                    } else {
+                        None
+                    }
+                }
+                DataType::DullReference => {
+                    if let ValueType::DullReference(x) = input.value() {
+                        Some(JsonValue::String(x.clone()))
+                    } else {
+                        None
+                    }
+                }
+                DataType::VerticalAnchor => {
+                    if let ValueType::VerticalAnchor(x, i) = input.value() {
+                        let mut obj = JsonValue::new_object();
+                        obj.insert(x.as_ref(), *i);
+                        Some(obj)
+                    } else {
+                        None
+                    }
+                }
+                DataType::SurfaceType => {
+                    if let ValueType::SurfaceType(x) = input.value() {
+                        Some(JsonValue::String(x.as_ref().to_string()))
+                    } else {
+                        None
+                    }
+                }
             }
         }
     }

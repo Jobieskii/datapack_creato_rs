@@ -71,6 +71,7 @@ pub enum WindowType {
     #[strum(serialize = "Density Function")]
     DensityFunction,
     Noise,
+    Biome,
 }
 
 impl WindowType {
@@ -80,6 +81,7 @@ impl WindowType {
                 NodeTemplate::DensityFunction(DensityFunctionType::Constant)
             }
             WindowType::Noise => NodeTemplate::Noise,
+            WindowType::Biome => todo!(),
         }
     }
 }
@@ -200,6 +202,7 @@ impl Window {
         match window_type {
             WindowType::DensityFunction => "worldgen/density_function",
             WindowType::Noise => "worldgen/noise",
+            WindowType::Biome => "worldgen/biome",
         }
         .to_string()
     }
